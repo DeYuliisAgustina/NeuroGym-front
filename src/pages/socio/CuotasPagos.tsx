@@ -42,8 +42,12 @@ export function CuotasPagos() {
   const accion = useAccion();
   const resultado = parametros.get('resultado');
 
+  // Regreso desde Mercado Pago: el backend confirma consultando la API oficial (no se confía en la URL).
   useEffect(() => {
-    if (resultado) void detalle.recargar();
+    const paymentId = parametros.get('payment_id');
+    const preapprovalId = parametros.get('preapproval_id');
+    const confirmar = paymentId || preapprovalId ? api.post('/pagos/confirmacion', paymentId ? { paymentId } : { preapprovalId }).catch(() => undefined) : Promise.resolve();
+    if (resultado || paymentId || preapprovalId) void confirmar.then(() => detalle.recargar());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultado]);
 

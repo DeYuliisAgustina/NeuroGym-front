@@ -30,7 +30,6 @@ const MiQr = lazy(() => import('../pages/socio/MiQr').then((m) => ({ default: m.
 const MiRutina = lazy(() => import('../pages/socio/MiRutina').then((m) => ({ default: m.MiRutina })));
 const PerfilSocio = lazy(() => import('../pages/socio/PerfilSocio').then((m) => ({ default: m.PerfilSocio })));
 const Profesionales = lazy(() => import('../pages/socio/Profesionales').then((m) => ({ default: m.Profesionales })));
-const SimuladorPago = lazy(() => import('../pages/socio/SimuladorPago').then((m) => ({ default: m.SimuladorPago })));
 const Turnos = lazy(() => import('../pages/socio/Turnos').then((m) => ({ default: m.Turnos })));
 
 /** Navegación de la aplicación, separada por perfil (Mapa de navegación, Figura 27 del TFI). */
@@ -48,7 +47,6 @@ export function AppRouter() {
       <Route path="/ingreso" element={<Ingreso />} />
       <Route path="/admin/ingreso" element={<Ingreso administrativo />} />
       <Route path="/profesionales/registro" element={<RegistroProfesional />} />
-      <Route path="/simulador-pago" element={socio(<SimuladorPago />)} />
 
       <Route path="/socio" element={socio(<SocioLayout />)}>
         <Route index element={<InicioSocio />} />
