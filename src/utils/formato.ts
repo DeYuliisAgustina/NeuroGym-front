@@ -1,6 +1,6 @@
 /** Formateo de importes, fechas y etiquetas para la interfaz (es-AR). */
 
-const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
+const pesos = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0, maximumFractionDigits: 2 });
 export const dinero = (valor: number | string | null | undefined) => pesos.format(Number(valor ?? 0));
 
 export function fecha(valor: string | Date | null | undefined, conHora = false) {
@@ -82,3 +82,30 @@ export function tonoEstado(valor: string): string {
   if (['PENDIENTE', 'SERVICE_PROGRAMADO', 'EN_GESTION', 'SOLICITADO', 'MEDIO', 'PROGRAMADO', 'REPROGRAMADO'].includes(valor)) return 'etiqueta-alerta';
   return '';
 }
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** "2026-11" → "Noviembre 2026" (períodos de cuota como en el prototipo). */
+export function mesAnio(periodo: string) {
+  const [anio, mes] = periodo.split('-').map(Number);
+  return mes ? `${capital(MESES[mes - 1])} ${anio}` : periodo;
+}
+
+/** "15 de noviembre de 2026" (o sin año). */
+export function fechaLarga(valor: string | Date | null | undefined, conAnio = true) {
+  if (!valor) return '—';
+  const d = typeof valor === 'string' ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(valor) ? `${valor}T12:00:00` : valor) : valor;
+  const partes = new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' }).formatToParts(d);
+  const v = (t: string) => partes.find((p) => p.type === t)?.value ?? '';
+  return conAnio ? `${v('day')} de ${v('month')} de ${v('year')}` : `${v('day')} de ${v('month')}`;
+}
+
+/** "28 sept" (fecha corta de las tablas del prototipo). */
+export function fechaCorta(valor: string | Date | null | undefined) {
+  if (!valor) return '—';
+  const d = typeof valor === 'string' ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(valor) ? `${valor}T12:00:00` : valor) : valor;
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'America/Argentina/Buenos_Aires' }).replace('.', '');
+}
+
+export const MEDIO_PROTOTIPO: Record<string, string> = { PAGO_UNICO: 'Mercado Pago', DEBITO_AUTOMATICO: 'Débito automático', EFECTIVO: 'Efectivo' };

@@ -1,0 +1,24 @@
+/*
+ * Complementos de neurogym.css para elementos que aparecen en las figuras del
+ * TFI (10.5.3.14) y no en los prototipos HTML. Usan los mismos tokens, radios
+ * y tipografía del prototipo; no redefinen ninguna clase existente.
+ */
+@layer components {
+  /* Encabezado de modal con avatar (Figura 63 c, ficha del socio). */
+  .modal-person { display: flex; align-items: center; gap: 15px; }
+  .modal-person h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+  /* Resumen en recuadros de la ficha del socio (Plan, Asistencias, Última visita, Cuota). */
+  .ficha-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
+  .ficha-resumen > div { background: #f4f6ef; border: 1px solid #e2e7d9; border-radius: 12px; padding: 13px 14px; }
+  .ficha-resumen span { display: block; font-size: 11px; color: #5c6b61; margin-bottom: 6px; }
+  .ficha-resumen strong { font-size: 13px; }
+
+  /* Pie del modal con una acción destructiva a la izquierda (Desactivar socio). */
+  .form-actions.split { justify-content: space-between; flex-wrap: wrap; }
+  .form-actions.split > div { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  @media (max-width: 640px) {
+    .ficha-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}
