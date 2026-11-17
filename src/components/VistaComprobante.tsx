@@ -1,7 +1,9 @@
+import { useState } from 'react';
+import { api } from '../services/api';
 import type { Comprobante } from '../types';
 import { dinero, fechaLarga, mesAnio, MEDIO_PROTOTIPO, conSede } from '../utils/formato';
 import { Icono } from './Icono';
-import { Boton, FilaDato, Insignia, Marca, Modal } from './ui';
+import { Boton, ErrorFormulario, FilaDato, Insignia, Marca, Modal } from './ui';
 
 /**
  * Texto del estado del envío por WhatsApp según lo que informó el proveedor.
@@ -49,35 +51,25 @@ export function Composicion({ cuotaBase, adicionalPremium, descuento, plan }: { 
   );
 }
 
-/** Descarga el comprobante como archivo HTML autocontenido. */
-function descargar(c: Comprobante) {
-  const filas: [string, string][] = [
-    ['Número', c.numero],
-    ['Socio', c.socio],
-    ['Sede', c.sede],
-    ['Período', mesAnio(c.periodo)],
-    ['Plan', c.plan],
-    ['Cuota del gimnasio · Básico', dinero(c.cuotaBase)],
-    ['Adicional Premium', dinero(c.adicionalPremium)],
-    ['Descuento', `−${dinero(c.descuento)}`],
-    ['Importe abonado', dinero(c.importe)],
-    ['Medio', MEDIO_PROTOTIPO[c.medio] ?? c.medio],
-    ['Fecha de pago', fechaLarga(c.fechaPago)],
-    ['Referencia', c.referencia],
-  ];
-  const html = `<!doctype html><html lang="es"><meta charset="utf-8"><title>Comprobante ${c.numero}</title><body style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:40px auto;color:#07130e"><h1>NeuroGym · Comprobante del gimnasio</h1><table style="width:100%;border-collapse:collapse">${filas
-    .map(([a, b]) => `<tr><td style="padding:8px 0;border-bottom:1px solid #dde3dc;color:#5c6b61">${a}</td><td style="padding:8px 0;border-bottom:1px solid #dde3dc;text-align:right"><strong>${b}</strong></td></tr>`)
-    .join('')}</table><p style="color:#5c6b61;font-size:12px">Importes conservados al momento del registro. No reemplaza una factura.</p></body></html>`;
-  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `comprobante-${c.numero}.html`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 /** "Comprobante del gimnasio" (Figura 33 b, CU-001-009): importes congelados al momento del pago (RD12). */
 export function ModalComprobante({ comprobante: c, onCerrar }: { comprobante: Comprobante | null; onCerrar: () => void }) {
+  const [descargando, setDescargando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Descarga el mismo PDF que se envía por WhatsApp (lo genera el backend con los datos históricos).
+  const descargar = async (comprobante: Comprobante) => {
+    if (!comprobante.rutaPdf) return;
+    setDescargando(true);
+    setError(null);
+    try {
+      await api.descargar(comprobante.rutaPdf, `comprobante-${comprobante.numero}.pdf`);
+    } catch (e) {
+      setError((e as Error).message || 'No se pudo descargar el comprobante.');
+    } finally {
+      setDescargando(false);
+    }
+  };
+
   return (
     <Modal
       titulo="Comprobante del gimnasio"
@@ -90,7 +82,7 @@ export function ModalComprobante({ comprobante: c, onCerrar }: { comprobante: Co
             <Boton estilo="outline" onClick={onCerrar}>
               Cerrar
             </Boton>
-            <Boton icono="download" onClick={() => descargar(c)}>
+            <Boton icono="download" cargando={descargando} disabled={!c.rutaPdf} onClick={() => descargar(c)}>
               Descargar comprobante
             </Boton>
             <Boton estilo="outline" icono="receipt" onClick={() => window.print()}>
@@ -123,6 +115,7 @@ export function ModalComprobante({ comprobante: c, onCerrar }: { comprobante: Co
             </div>
           </div>
           <p className="receipt-note">Comprobante {c.numero} · {conSede(c.sede)}. No reemplaza una factura.</p>
+          <ErrorFormulario>{error}</ErrorFormulario>
         </>
       )}
     </Modal>

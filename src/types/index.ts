@@ -70,6 +70,9 @@ export interface Cuota {
 }
 
 export interface Comprobante {
+  pagoId?: number;
+  /** Ruta de la API para descargar el PDF del comprobante (el mismo que se envía por WhatsApp). */
+  rutaPdf?: string;
   numero: string;
   fechaEmision: string;
   fechaEnvio: string | null;

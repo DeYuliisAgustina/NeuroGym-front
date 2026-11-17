@@ -34,6 +34,7 @@ vi.mock('../src/services/api', () => ({
     get: vi.fn((ruta: string) => Promise.resolve(respuestas[ruta] ?? [])),
     post: vi.fn(() => Promise.resolve(null)),
     delete: vi.fn(() => Promise.resolve(null)),
+    descargar: vi.fn(() => Promise.resolve()),
   },
 }));
 
@@ -103,5 +104,39 @@ describe('Cuotas y pagos: cuota a abonar y débito programado', () => {
     expect((await screen.findAllByText('Débito automático programado')).length).toBeGreaterThan(0);
     expect(screen.queryByRole('group', { name: 'Medio de pago' })).not.toBeInTheDocument();
     expect(screen.getByText(/Si el débito se rechaza, vas a poder pagarla/)).toBeInTheDocument();
+  });
+});
+
+describe('Descargar comprobante', () => {
+  it('descarga el mismo PDF que se envía por WhatsApp', async () => {
+    const { api } = await import('../src/services/api');
+    const { ModalComprobante } = await import('../src/components/VistaComprobante');
+    render(
+      <MemoryRouter>
+      <ModalComprobante
+        comprobante={{
+          pagoId: 77,
+          rutaPdf: '/socio/pagos/77/comprobante.pdf',
+          numero: 'NG-00000077',
+          fechaEmision: '2026-11-17T19:02:11.000Z',
+          fechaEnvio: null,
+          socio: 'Socia Prueba',
+          sede: 'Norte',
+          periodo: '2026-10',
+          plan: 'Premium',
+          cuotaBase: 32000,
+          adicionalPremium: 12000,
+          descuento: 0,
+          importe: 44000,
+          medio: 'EFECTIVO',
+          fechaPago: '2026-11-17T19:02:11.000Z',
+          referencia: 'NG-00000077',
+        }}
+        onCerrar={() => undefined}
+      />
+      </MemoryRouter>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Descargar comprobante/ }));
+    expect(api.descargar).toHaveBeenCalledWith('/socio/pagos/77/comprobante.pdf', 'comprobante-NG-00000077.pdf');
   });
 });
