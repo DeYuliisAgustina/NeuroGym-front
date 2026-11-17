@@ -8,7 +8,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { useInstalacion } from '../../hooks/useInstalacion';
 import { api } from '../../services/api';
-import { dinero, fechaLarga } from '../../utils/formato';
+import { dinero, fechaLarga, conSede } from '../../utils/formato';
 import { telefonoValido } from '../../validations/formularios';
 
 interface Perfil {
@@ -66,7 +66,7 @@ export function PerfilSocio() {
               <div>
                 <h2>{nombre}</h2>
                 <p>
-                  Socio · {p.sede.gimnasio.razonSocial} · Sede {p.sede.nombre}
+                  Socio · {p.sede.gimnasio.razonSocial} · {conSede(p.sede.nombre)}
                 </p>
                 <Insignia color={p.esPremium ? 'lilac' : ''}>Plan {p.esPremium ? 'Premium' : 'Básico'}</Insignia>
               </div>

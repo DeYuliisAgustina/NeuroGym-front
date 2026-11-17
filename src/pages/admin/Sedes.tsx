@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Sede, Turno } from '../../types';
-import { hoyIso, sumarDiasIso } from '../../utils/formato';
+import { hoyIso, sumarDiasIso, conSede } from '../../utils/formato';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -332,7 +332,7 @@ function HorariosSede({ sede, alVolver }: { sede: Sede; alVolver: () => void }) 
         </div>
       </aside>
 
-      <Modal titulo={form?.id ? 'Editar turno' : 'Agregar turno'} subtitulo={`Sede ${sede.nombre}`} abierto={!!form} onCerrar={() => setForm(null)}>
+      <Modal titulo={form?.id ? 'Editar turno' : 'Agregar turno'} subtitulo={`${conSede(sede.nombre)}`} abierto={!!form} onCerrar={() => setForm(null)}>
         {form && (
           <form onSubmit={guardar}>
             <ErrorFormulario>{accion.error}</ErrorFormulario>

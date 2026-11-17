@@ -8,7 +8,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Sede } from '../../types';
-import { fechaCorta, fechaLarga } from '../../utils/formato';
+import { fechaCorta, fechaLarga, conSede } from '../../utils/formato';
 import { PRIORIDAD, ticket } from '../socio/Equipamiento';
 
 interface Incidencia {
@@ -250,7 +250,7 @@ function DetalleIncidencia({ incidencia: i, gestion, alCerrar, alGuardar }: { in
     if (ok) alGuardar();
   };
   return (
-    <Modal titulo={`Reporte ${ticket(i.id)}`} subtitulo={`${i.equipo.nombre} · Sede ${i.equipo.sede.nombre}`} abierto onCerrar={alCerrar}>
+    <Modal titulo={`Reporte ${ticket(i.id)}`} subtitulo={`${i.equipo.nombre} · ${conSede(i.equipo.sede.nombre)}`} abierto onCerrar={alCerrar}>
       <form onSubmit={guardar}>
         <ErrorFormulario>{accion.error}</ErrorFormulario>
         <div className="spread">

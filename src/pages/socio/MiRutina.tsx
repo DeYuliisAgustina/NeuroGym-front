@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { EjercicioRutina } from '../../types';
-import { fechaLarga } from '../../utils/formato';
+import { fechaLarga, conSede } from '../../utils/formato';
 import { validarEjercicio } from '../../validations/formularios';
 import { iconoEjercicio } from './InicioSocio';
 
@@ -166,7 +166,7 @@ export function MiRutina() {
                 </span>
                 <span>
                   <Icono n="pin" />
-                  Sede {perfil.datos?.sede.nombre ?? ''}
+                  {conSede(perfil.datos?.sede.nombre ?? '')}
                 </span>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import type { Comprobante } from '../types';
-import { dinero, fechaLarga, mesAnio, MEDIO_PROTOTIPO } from '../utils/formato';
+import { dinero, fechaLarga, mesAnio, MEDIO_PROTOTIPO, conSede } from '../utils/formato';
 import { Icono } from './Icono';
 import { Boton, FilaDato, Insignia, Marca, Modal } from './ui';
 
@@ -92,7 +92,7 @@ export function ModalComprobante({ comprobante: c, onCerrar }: { comprobante: Co
               <p>“Tu pago de {dinero(c.importe)} fue registrado. Tu cuota está al día y el comprobante está disponible.”</p>
             </div>
           </div>
-          <p className="receipt-note">Comprobante {c.numero} · Sede {c.sede}. No reemplaza una factura.</p>
+          <p className="receipt-note">Comprobante {c.numero} · {conSede(c.sede)}. No reemplaza una factura.</p>
         </>
       )}
     </Modal>

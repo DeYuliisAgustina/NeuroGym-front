@@ -109,3 +109,6 @@ export function fechaCorta(valor: string | Date | null | undefined) {
 }
 
 export const MEDIO_PROTOTIPO: Record<string, string> = { PAGO_UNICO: 'Mercado Pago', DEBITO_AUTOMATICO: 'Débito automático', EFECTIVO: 'Efectivo' };
+
+/** "Centro" → "Sede Centro"; si el nombre ya empieza con "Sede", no se repite. */
+export const conSede = (nombre: string | null | undefined) => (!nombre ? '' : /^sede\b/i.test(nombre) ? nombre : `Sede ${nombre}`);

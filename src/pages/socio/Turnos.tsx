@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { EjercicioRutina, Sede, Turno } from '../../types';
-import { hoyIso, mesAnio, sumarDiasIso } from '../../utils/formato';
+import { hoyIso, mesAnio, sumarDiasIso, conSede } from '../../utils/formato';
 
 interface Reserva {
   id: number;
@@ -37,7 +37,7 @@ export function Cita({ turno }: { turno: Turno }) {
         <p>
           {dia(turno.fecha, { weekday: 'long', day: 'numeric', month: 'short' })} · {turno.horaInicio} a {turno.horaFin}
         </p>
-        <p>Sede {turno.sede}</p>
+        <p>{conSede(turno.sede)}</p>
       </div>
     </div>
   );
@@ -183,7 +183,7 @@ export function Turnos() {
                   <div className="slot-time">{t.horaInicio}</div>
                   <h3>{t.actividad}</h3>
                   <p>
-                    {minutos(t.horaFin) - minutos(t.horaInicio)} minutos · Sede {t.sede}
+                    {minutos(t.horaFin) - minutos(t.horaInicio)} minutos · {conSede(t.sede)}
                   </p>
                   <div style={{ marginTop: 14 }}>
                     {mio ? <Insignia>Tu turno</Insignia> : lleno ? <Insignia color="neutral">Sin cupos</Insignia> : <Insignia>{t.disponibles} cupos disponibles</Insignia>}

@@ -6,7 +6,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { EstadoEquipo } from '../../types';
-import { etiqueta, fechaCorta, fechaLarga } from '../../utils/formato';
+import { etiqueta, fechaCorta, fechaLarga, conSede } from '../../utils/formato';
 
 interface Equipo {
   id: number;
@@ -216,7 +216,7 @@ export function Equipamiento() {
                 <Estado valor={m.estado} />
                 <h3>{m.nombre}</h3>
                 <p>
-                  {m.categoria} · Sede {sede}
+                  {m.categoria} · {conSede(sede)}
                 </p>
                 <div className="spread">
                   <span>{m.mantenimientoHasta ? 'Disponible desde' : 'Estado'}</span>
@@ -242,7 +242,7 @@ export function Equipamiento() {
 
       <Modal
         titulo={equipo?.nombre ?? ''}
-        subtitulo={equipo ? `${equipo.categoria} · Sede ${sede}` : ''}
+        subtitulo={equipo ? `${equipo.categoria} · ${conSede(sede)}` : ''}
         abierto={!!equipo}
         onCerrar={() => setEquipo(null)}
         pie={

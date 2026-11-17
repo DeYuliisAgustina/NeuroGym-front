@@ -5,7 +5,7 @@ import { BotonEnlace, CabeceraTarjeta, Cargando, Encabezado, EnlaceTexto, ErrorF
 import { useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Cuota, EjercicioRutina, Turno } from '../../types';
-import { fechaLarga, hoyIso, sumarDiasIso } from '../../utils/formato';
+import { fechaLarga, hoyIso, sumarDiasIso, conSede } from '../../utils/formato';
 
 interface Perfil {
   saldoPuntos: number;
@@ -83,7 +83,7 @@ export function InicioSocio() {
         <div className="dash-hero-content">
           <div className="eyebrow">ENTRENAMIENTO DE HOY</div>
           <h2>{ejercicios.length ? 'Tu rutina está lista.' : 'Armemos tu rutina.'}</h2>
-          <p>{ejercicios.length ? `${p.preferencia?.objetivo ?? 'Tu objetivo'} · ${deHoy.length} ejercicios · Sede ${p.sede.nombre}.` : 'Elegí tu objetivo y generá tu primera rutina personalizada.'}</p>
+          <p>{ejercicios.length ? `${p.preferencia?.objetivo ?? 'Tu objetivo'} · ${deHoy.length} ejercicios · ${conSede(p.sede.nombre)}.` : 'Elegí tu objetivo y generá tu primera rutina personalizada.'}</p>
           <BotonEnlace a={ejercicios.length ? '/socio/rutina' : '/socio/bienvenida'} estilo="mint" icono="arrow">
             {ejercicios.length ? 'Ver mi entrenamiento' : 'Personalizar mi rutina'}
           </BotonEnlace>
@@ -207,7 +207,7 @@ export function InicioSocio() {
                       {new Date(`${proxima.turno.fecha}T12:00:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' }).replace('.', '')} · {proxima.turno.horaInicio} a{' '}
                       {proxima.turno.horaFin}
                     </p>
-                    <p>Sede {proxima.turno.sede}</p>
+                    <p>{conSede(proxima.turno.sede)}</p>
                   </div>
                 </div>
                 <div className="booking-foot">

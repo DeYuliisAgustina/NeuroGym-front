@@ -86,7 +86,7 @@ export function Cobros() {
         accion={
           <label className="filter-field">
             <span className="sr-only">Período</span>
-            <input type="month" aria-label="Período" value={filtros.periodo} onChange={(e) => setFiltros({ ...filtros, periodo: e.target.value || hoyIso().slice(0, 7) })} />
+            <input type="month" aria-label="Período" style={{ minWidth: 175 }} value={filtros.periodo} onChange={(e) => setFiltros({ ...filtros, periodo: e.target.value || hoyIso().slice(0, 7) })} />
           </label>
         }
       />

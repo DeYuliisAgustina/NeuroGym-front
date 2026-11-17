@@ -3,7 +3,7 @@ import { useToast } from '../contexts/ToastContext';
 import { useAccion } from '../hooks/useApi';
 import { api } from '../services/api';
 import type { EstadoEquipo, Sede } from '../types';
-import { etiqueta, fechaLarga, hoyIso } from '../utils/formato';
+import { etiqueta, fechaLarga, hoyIso, conSede } from '../utils/formato';
 import { Boton, ErrorFormulario, Estado, FilaDato, Modal } from './ui';
 
 export interface Equipo {
@@ -90,7 +90,7 @@ export function ModalHistorialEquipo({
   return (
     <Modal
       titulo={e?.nombre ?? 'Equipo'}
-      subtitulo={e ? `${e.categoria} · Sede ${e.sede.nombre}` : ''}
+      subtitulo={e ? `${e.categoria} · ${conSede(e.sede.nombre)}` : ''}
       abierto
       onCerrar={alCerrar}
       pie={
@@ -263,7 +263,7 @@ export function ModalBajaEquipo({ equipo, alCerrar, alGuardar }: { equipo: Equip
     }
   };
   return (
-    <Modal titulo="Dar de baja del inventario" subtitulo={`${equipo.nombre} · ${equipo.categoria} · Sede ${equipo.sede.nombre}`} abierto onCerrar={alCerrar}>
+    <Modal titulo="Dar de baja del inventario" subtitulo={`${equipo.nombre} · ${equipo.categoria} · ${conSede(equipo.sede.nombre)}`} abierto onCerrar={alCerrar}>
       <form onSubmit={confirmar}>
         <ErrorFormulario>{accion.error}</ErrorFormulario>
         <div className="soft-alert">

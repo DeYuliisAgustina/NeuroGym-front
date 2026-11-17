@@ -81,8 +81,10 @@ export function Intelligence() {
   const comparacion = a?.comparacionSedes ?? [];
   const estimaciones = a?.estimaciones ?? [];
   const totalAsistencias = evolucion.reduce((t, m) => t + m.asistencias, 0);
-  const ultimo = evolucion.at(-1);
-  const anterior = evolucion.at(-2);
+  // Como en el prototipo, los indicadores usan el último mes completo; el mes en curso se ve aparte en la gráfica.
+  const completos = evolucion.filter((m) => m.mes < hoyIso().slice(0, 7));
+  const ultimo = completos.at(-1);
+  const anterior = completos.at(-2);
   const variacion = ultimo && anterior && anterior.asistencias ? Math.round(((ultimo.asistencias - anterior.asistencias) / anterior.asistencias) * 1000) / 10 : null;
   const revisar = estimaciones.filter((e) => e.nivel !== 'BAJO');
   const sinDecision = revisar.filter((e) => !e.ultimaDecision);
@@ -191,7 +193,7 @@ export function Intelligence() {
               <div className="ngi-chart">
                 <GraficoLinea
                   descripcion={`Asistencias por mes en ${sedeNombre}`}
-                  etiquetas={evolucion.map((m) => mesCorto(m.mes))}
+                  etiquetas={evolucion.map((m) => (m.mes === hoyIso().slice(0, 7) ? `${mesCorto(m.mes)} (en curso)` : mesCorto(m.mes)))}
                   series={[{ nombre: sedeNombre, color: '#597746', valores: evolucion.map((m) => m.asistencias) }]}
                 />
                 <div className="chart-legend">
