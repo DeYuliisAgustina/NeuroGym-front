@@ -60,10 +60,18 @@ export function Cobros() {
 
   const registrar = async () => {
     if (!cobrar) return;
-    const r = await accion.ejecutar(() => api.post<{ pagoId: number; comprobanteEnviado: boolean }>(`/admin/cuotas/${cobrar.id}/efectivo`));
+    const r = await accion.ejecutar(() => api.post<{ pagoId: number; envioWhatsapp: { estado: string; detalle: string | null } }>(`/admin/cuotas/${cobrar.id}/efectivo`));
     if (r) {
       setCobrar(null);
-      toast(r.comprobanteEnviado ? 'Cobro registrado. El comprobante se envió por WhatsApp.' : 'Cobro registrado. El envío por WhatsApp falló; el comprobante queda en el historial.');
+      // El envío se informa tal como lo respondió el proveedor: «aceptado» no es «entregado».
+      const estado = r.envioWhatsapp?.estado;
+      toast(
+        estado === 'ACEPTADO'
+          ? 'Cobro registrado. El comprobante se envió a WhatsApp; la entrega se confirma en el comprobante.'
+          : estado === 'FALLIDO'
+            ? 'Cobro registrado. No se pudo enviar el comprobante por WhatsApp; queda disponible en el historial.'
+            : 'Cobro registrado. El comprobante queda en el historial (WhatsApp no se envió en este entorno).',
+      );
       void cuotas.recargar();
       void resumen.recargar();
     }

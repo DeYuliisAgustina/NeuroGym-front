@@ -73,6 +73,8 @@ export interface Comprobante {
   numero: string;
   fechaEmision: string;
   fechaEnvio: string | null;
+  /** Estado real del último envío por WhatsApp (null: sin envío registrado). */
+  envioWhatsapp?: EnvioWhatsapp | null;
   socio: string;
   sede: string;
   periodo: string;
@@ -130,4 +132,18 @@ export interface MetodoPago {
   id: number;
   tipo: 'OBRA_SOCIAL' | 'PARTICULAR' | 'ACUERDO_CONSULTA';
   obraSocial: string | null;
+}
+
+/** Estados de un mensaje de WhatsApp según lo que informa el proveedor. */
+export type EstadoEnvioWhatsapp = 'PREPARADO' | 'ACEPTADO' | 'ENVIADO' | 'ENTREGADO' | 'LEIDO' | 'FALLIDO' | 'OMITIDO' | 'SIMULADO';
+
+export interface EnvioWhatsapp {
+  estado: EstadoEnvioWhatsapp;
+  proveedor: string;
+  detalle: string | null;
+  fechaAceptado: string | null;
+  fechaEnviado: string | null;
+  fechaEntregado: string | null;
+  fechaLeido: string | null;
+  fechaFallido: string | null;
 }

@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { Composicion, ModalComprobante } from '../src/components/VistaComprobante';
+import { Composicion, estadoEnvioWhatsapp, ModalComprobante } from '../src/components/VistaComprobante';
 import { Estado, Kpi } from '../src/components/ui';
 import { ToastProvider } from '../src/contexts/ToastContext';
 import { fechaLarga, mesAnio } from '../src/utils/formato';
@@ -52,7 +52,7 @@ describe('interfaz del prototipo', () => {
     expect(within(recibo).getByText('Cuota Noviembre 2026')).toBeInTheDocument();
     expect(within(recibo).getByText('Débito automático')).toBeInTheDocument();
     expect(within(recibo).getByText('MP-998877')).toBeInTheDocument();
-    expect(screen.getByText(/Envío por WhatsApp · pendiente/)).toBeInTheDocument();
+    expect(screen.getByText(/WhatsApp: sin envío confirmado/)).toBeInTheDocument();
     // El modal tiene dos controles "Cerrar": la cruz del encabezado y el botón del pie.
     await userEvent.click(screen.getAllByRole('button', { name: 'Cerrar' }).find((b) => b.classList.contains('btn'))!);
     expect(cerrar).toHaveBeenCalled();
@@ -69,5 +69,25 @@ describe('interfaz del prototipo', () => {
     expect(screen.getByText('Impaga').closest('.badge')).toHaveClass('danger');
     expect(screen.getByText('Pendiente').closest('.badge')).toHaveClass('warning');
     expect(screen.getByText('Mis puntos').closest('.kpi')).toBeInTheDocument();
+  });
+});
+
+describe('estado del envío por WhatsApp en el comprobante', () => {
+  const con = (estado: string | null, extra = {}) =>
+    estadoEnvioWhatsapp({
+      envioWhatsapp: estado
+        ? ({ estado, proveedor: 'DIALOG360_SANDBOX', detalle: null, fechaAceptado: null, fechaEnviado: null, fechaEntregado: null, fechaLeido: null, fechaFallido: null, ...extra } as Comprobante['envioWhatsapp'])
+        : null,
+    });
+
+  it('solo muestra enviado o entregado si el proveedor lo confirmó', () => {
+    expect(con('ENTREGADO', { fechaEntregado: '2026-11-17T18:00:00.000Z' })).toBe('WhatsApp: entregado · 17 de noviembre');
+    expect(con('LEIDO', { fechaLeido: '2026-11-17T18:00:00.000Z' })).toContain('leído');
+    expect(con('ENVIADO')).toContain('entrega sin confirmar');
+    expect(con('ACEPTADO')).toContain('envío sin confirmar');
+    expect(con('FALLIDO')).toContain('no se pudo enviar');
+    expect(con('SIMULADO')).toContain('no se envió');
+    expect(con('OMITIDO')).toContain('no enviado');
+    expect(con(null)).toBe('WhatsApp: sin envío confirmado');
   });
 });
