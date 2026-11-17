@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { AvisoPago } from '../../components/AvisoPago';
 import { Icono } from '../../components/Icono';
 import { ModalPremium, type PreciosPlanes } from '../../components/ModalPremium';
 import { Composicion, ModalComprobante } from '../../components/VistaComprobante';
@@ -74,6 +75,8 @@ export function CuotasPagos() {
   const [autorizo, setAutorizo] = useState(false);
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
   const [retorno, setRetorno] = useState<{ titulo: string; texto: string } | null>(null);
+  // Regreso de Mercado Pago con el pago rechazado: se muestra un aviso destacado.
+  const [rechazado, setRechazado] = useState(false);
   const accion = useAccion();
 
   // Regreso desde Mercado Pago: el backend confirma consultando la API oficial (no se confía en la URL).
@@ -91,7 +94,7 @@ export function CuotasPagos() {
     void confirmar
       .catch(() => null)
       .then((r) => {
-        if (resultado === 'rechazado') accion.setError('Mercado Pago no aprobó el pago. Tu cuota sigue pendiente y podés intentarlo de nuevo.');
+        if (resultado === 'rechazado') setRechazado(true);
         else if (r && ('aprobado' in r ? r.aprobado : 'autorizada' in r ? r.autorizada : false))
           setRetorno(
             preapprovalId
@@ -194,7 +197,47 @@ export function CuotasPagos() {
           ))
         }
       />
-      <ErrorFormulario>{accion.error}</ErrorFormulario>
+      {rechazado ? (
+        <AvisoPago
+          titulo="Mercado Pago rechazó el pago"
+          onCerrar={() => setRechazado(false)}
+          acciones={
+            <>
+              <Boton
+                icono="refresh"
+                onClick={() => {
+                  setRechazado(false);
+                  accion.limpiar();
+                  setMedio('PAGO_UNICO');
+                  setModal('pago');
+                }}
+              >
+                Intentar de nuevo
+              </Boton>
+              <Boton
+                estilo="outline"
+                icono="wallet"
+                onClick={() => {
+                  setRechazado(false);
+                  document.querySelector('.payment-options')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
+                Elegir otro medio de pago
+              </Boton>
+            </>
+          }
+        >
+          <p>No se realizó ningún cobro y tu cuota sigue pendiente.</p>
+          <p>Revisá los datos de la tarjeta o probá con otro medio. También podés abonarla en efectivo en la administración de tu sede.</p>
+        </AvisoPago>
+      ) : (
+        accion.error &&
+        !modal && (
+          <AvisoPago titulo="No pudimos completar la operación" onCerrar={accion.limpiar}>
+            <p>{accion.error}</p>
+          </AvisoPago>
+        )
+      )}
 
       <div className="plan-prices">
         <article className={`plan-price-card ${!esPremium ? 'selected' : ''}`.trim()}>

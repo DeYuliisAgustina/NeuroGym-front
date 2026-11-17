@@ -27,6 +27,9 @@ const cuota = (datos: Partial<Cuota>): Cuota => ({
 // API simulada solo para esta prueba de interfaz.
 const respuestas: Record<string, unknown> = {};
 vi.mock('../src/services/api', () => ({
+  ErrorApi: class ErrorApi extends Error {
+    errores: Record<string, string> = {};
+  },
   api: {
     get: vi.fn((ruta: string) => Promise.resolve(respuestas[ruta] ?? [])),
     post: vi.fn(() => Promise.resolve(null)),
@@ -34,13 +37,13 @@ vi.mock('../src/services/api', () => ({
   },
 }));
 
-function preparar(detalle: object) {
+function preparar(detalle: object, ruta = '/socio/pagos') {
   respuestas['/socio/cuota'] = detalle;
   respuestas['/socio/perfil'] = { esPremium: false, plan: { tipo: 'BASICO' }, preciosPlanes: { cuotaBase: 32000, adicionalPremium: 12000 } };
   respuestas['/pagos/integracion'] = { mercadoPago: 'PRUEBA' };
   respuestas['/cuotas/2/medios'] = importes(30000);
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[ruta]}>
       <ToastProvider>
         <CuotasPagos />
       </ToastProvider>
@@ -67,6 +70,27 @@ describe('Cuotas y pagos: cuota a abonar y débito programado', () => {
     expect(within(mediosVencida).queryByText('Débito automático')).not.toBeInTheDocument();
     expect(within(mediosVencida).getByText('Mercado Pago')).toBeInTheDocument();
     expect(within(mediosVencida).getByText('Efectivo')).toBeInTheDocument();
+  });
+
+  it('al volver de Mercado Pago con el pago rechazado muestra un aviso destacado con qué hacer', async () => {
+    preparar({ cuota: cuota({}), adeudadas: [], adhesion: null, importes: importes(32000) }, '/socio/pagos?resultado=rechazado&pago=75');
+    const aviso = await screen.findByRole('alert');
+    expect(within(aviso).getByRole('heading', { name: 'Mercado Pago rechazó el pago' })).toBeInTheDocument();
+    expect(within(aviso).getByText(/No se realizó ningún cobro y tu cuota sigue pendiente/)).toBeInTheDocument();
+    expect(within(aviso).getByRole('button', { name: /Intentar de nuevo/ })).toBeInTheDocument();
+    await userEvent.click(within(aviso).getByRole('button', { name: 'Cerrar aviso' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('si no se puede iniciar el pago, el motivo se muestra en el aviso destacado', async () => {
+    const { api } = await import('../src/services/api');
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('La cuota del período se debitará automáticamente con tu adhesión.'));
+    preparar({ cuota: cuota({}), adeudadas: [], adhesion: null, importes: importes(32000) });
+    await userEvent.click(await screen.findByRole('button', { name: /Efectivo/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Pagaré en administración/ }));
+    const aviso = await screen.findByRole('alert');
+    expect(within(aviso).getByRole('heading', { name: 'No pudimos completar la operación' })).toBeInTheDocument();
+    expect(within(aviso).getByText(/se debitará automáticamente/)).toBeInTheDocument();
   });
 
   it('con débito programado muestra el estado y no ofrece otros medios', async () => {
