@@ -1,35 +1,100 @@
 import type { Comprobante } from '../types';
-import { dinero, etiqueta, fecha } from '../utils/formato';
-import { Boton } from './ui';
+import { dinero, fechaLarga, mesAnio, MEDIO_PROTOTIPO } from '../utils/formato';
+import { Icono } from './Icono';
+import { Boton, FilaDato, Insignia, Marca, Modal } from './ui';
 
-/** "Tu comprobante" (CU-001-009): importes congelados al momento del pago (RD12). */
-export function VistaComprobante({ comprobante: c, alCerrar }: { comprobante: Comprobante; alCerrar: () => void }) {
+/** Filas de la composición del importe (feeBreakdown del prototipo). */
+export function Composicion({ cuotaBase, adicionalPremium, descuento, plan }: { cuotaBase: number; adicionalPremium: number; descuento: number; plan?: string }) {
   return (
-    <div className="pila">
-      <div className="fila-entre">
-        <strong>Comprobante {c.numero}</strong>
-        <small>{fecha(c.fechaEmision, true)}</small>
-      </div>
-      <table>
-        <tbody>
-          <tr><td>Socio</td><td>{c.socio}</td></tr>
-          <tr><td>Sede</td><td>{c.sede}</td></tr>
-          <tr><td>Período</td><td>{c.periodo}</td></tr>
-          <tr><td>Plan</td><td>{c.plan}</td></tr>
-          <tr><td>Cuota base</td><td className="importe">{dinero(c.cuotaBase)}</td></tr>
-          <tr><td>Adicional Premium</td><td className="importe">{dinero(c.adicionalPremium)}</td></tr>
-          <tr><td>Descuento</td><td className="importe">−{dinero(c.descuento)}</td></tr>
-          <tr><td><strong>Importe abonado</strong></td><td className="importe"><strong>{dinero(c.importe)}</strong></td></tr>
-          <tr><td>Medio de pago</td><td>{etiqueta(c.medio)}</td></tr>
-          <tr><td>Fecha de pago</td><td>{fecha(c.fechaPago, true)}</td></tr>
-          <tr><td>Referencia</td><td>{c.referencia}</td></tr>
-          <tr><td>Envío por WhatsApp</td><td>{c.fechaEnvio ? fecha(c.fechaEnvio, true) : 'No enviado (disponible en el historial)'}</td></tr>
-        </tbody>
-      </table>
-      <div className="fila no-imprimir">
-        <Boton variante="secundario" onClick={alCerrar}>Cerrar</Boton>
-        <Boton onClick={() => window.print()}>Imprimir comprobante</Boton>
-      </div>
-    </div>
+    <>
+      <FilaDato etiqueta="Cuota del gimnasio · Básico">{dinero(cuotaBase)}</FilaDato>
+      {(adicionalPremium > 0 || plan === 'Premium') && <FilaDato etiqueta="Adicional Premium">{dinero(adicionalPremium)}</FilaDato>}
+      {descuento > 0 && (
+        <div className="info-row discount-row">
+          <span>10% de descuento sobre el total del plan</span>
+          <strong>−{dinero(descuento)}</strong>
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Descarga el comprobante como archivo HTML autocontenido. */
+function descargar(c: Comprobante) {
+  const filas: [string, string][] = [
+    ['Número', c.numero],
+    ['Socio', c.socio],
+    ['Sede', c.sede],
+    ['Período', mesAnio(c.periodo)],
+    ['Plan', c.plan],
+    ['Cuota del gimnasio · Básico', dinero(c.cuotaBase)],
+    ['Adicional Premium', dinero(c.adicionalPremium)],
+    ['Descuento', `−${dinero(c.descuento)}`],
+    ['Importe abonado', dinero(c.importe)],
+    ['Medio', MEDIO_PROTOTIPO[c.medio] ?? c.medio],
+    ['Fecha de pago', fechaLarga(c.fechaPago)],
+    ['Referencia', c.referencia],
+  ];
+  const html = `<!doctype html><html lang="es"><meta charset="utf-8"><title>Comprobante ${c.numero}</title><body style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:40px auto;color:#07130e"><h1>NeuroGym · Comprobante del gimnasio</h1><table style="width:100%;border-collapse:collapse">${filas
+    .map(([a, b]) => `<tr><td style="padding:8px 0;border-bottom:1px solid #dde3dc;color:#5c6b61">${a}</td><td style="padding:8px 0;border-bottom:1px solid #dde3dc;text-align:right"><strong>${b}</strong></td></tr>`)
+    .join('')}</table><p style="color:#5c6b61;font-size:12px">Importes conservados al momento del registro. No reemplaza una factura.</p></body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `comprobante-${c.numero}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** "Comprobante del gimnasio" (Figura 33 b, CU-001-009): importes congelados al momento del pago (RD12). */
+export function ModalComprobante({ comprobante: c, onCerrar }: { comprobante: Comprobante | null; onCerrar: () => void }) {
+  return (
+    <Modal
+      titulo="Comprobante del gimnasio"
+      subtitulo="Importes conservados al momento del registro."
+      abierto={!!c}
+      onCerrar={onCerrar}
+      pie={
+        c && (
+          <>
+            <Boton estilo="outline" onClick={onCerrar}>
+              Cerrar
+            </Boton>
+            <Boton icono="download" onClick={() => descargar(c)}>
+              Descargar comprobante
+            </Boton>
+            <Boton estilo="outline" icono="receipt" onClick={() => window.print()}>
+              Imprimir
+            </Boton>
+          </>
+        )
+      }
+    >
+      {c && (
+        <>
+          <section className="receipt">
+            <Marca />
+            <Insignia>Pago registrado</Insignia>
+            <h3>Cuota {mesAnio(c.periodo)}</h3>
+            <p>
+              {c.socio} · Plan {c.plan}
+            </p>
+            <div className="amount">{dinero(c.importe)}</div>
+            <Composicion cuotaBase={c.cuotaBase} adicionalPremium={c.adicionalPremium} descuento={c.descuento} plan={c.plan} />
+            <FilaDato etiqueta="Medio">{MEDIO_PROTOTIPO[c.medio] ?? c.medio}</FilaDato>
+            <FilaDato etiqueta="Fecha">{fechaLarga(c.fechaPago)}</FilaDato>
+            <FilaDato etiqueta="Referencia">{c.referencia}</FilaDato>
+          </section>
+          <div className="whatsapp-preview">
+            <Icono n="message" />
+            <div>
+              <strong>Envío por WhatsApp{c.fechaEnvio ? ` · ${fechaLarga(c.fechaEnvio, false)}` : ' · pendiente'}</strong>
+              <p>“Tu pago de {dinero(c.importe)} fue registrado. Tu cuota está al día y el comprobante está disponible.”</p>
+            </div>
+          </div>
+          <p className="receipt-note">Comprobante {c.numero} · Sede {c.sede}. No reemplaza una factura.</p>
+        </>
+      )}
+    </Modal>
   );
 }

@@ -1,174 +1,237 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Aviso, Boton, Cargando, Estado, Kpi } from '../../components/ui';
-import { useAccion, useApi } from '../../hooks/useApi';
+import { Link } from 'react-router-dom';
+import hero from '../../assets/img/hero-entrenamiento.webp';
+import { Icono } from '../../components/Icono';
+import { BotonEnlace, CabeceraTarjeta, Cargando, Encabezado, EnlaceTexto, ErrorFormulario, Insignia, Kpi, Vacio } from '../../components/ui';
+import { useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
-import type { Cuota, Turno } from '../../types';
-import { diaSemanaCorto, dinero } from '../../utils/formato';
+import type { Cuota, EjercicioRutina, Turno } from '../../types';
+import { fechaLarga, hoyIso, sumarDiasIso } from '../../utils/formato';
 
 interface Perfil {
-  id: number;
   saldoPuntos: number;
   esPremium: boolean;
-  plan: { tipo: string };
   sede: { nombre: string };
   usuario: { nombre: string };
-  preferencia: unknown;
+  preferencia: { objetivo: string; diasPorSemana: number } | null;
+}
+interface Asistencia {
+  id: number;
+  fecha: string;
+  actividad: string;
+}
+interface Beneficios {
+  saldoPuntos: number;
+  beneficios: { id: number; costoPuntos: number; disponible: boolean }[];
 }
 
-const OBJETIVOS = ['Fuerza y bienestar', 'Resistencia', 'Hipertrofia', 'Movilidad'];
-const NIVELES = ['Principiante', 'Intermedio', 'Avanzado'];
+const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-/** Bienvenida de tres pasos: objetivo, experiencia y días (CU-003-001, sin datos biométricos RD15). */
-function Bienvenida({ alTerminar }: { alTerminar: () => void }) {
-  const [paso, setPaso] = useState(1);
-  const [objetivo, setObjetivo] = useState('');
-  const [nivel, setNivel] = useState('');
-  const [dias, setDias] = useState(3);
-  const accion = useAccion();
-  const generar = async () => {
-    const ok = await accion.ejecutar(() => api.post('/socio/rutina', { objetivo, nivel, diasPorSemana: dias }));
-    if (ok) alTerminar();
-  };
-  return (
-    <div className="tarjeta pila">
-      <small>Paso {paso} de 3</small>
-      <Aviso tipo="error">{accion.error}</Aviso>
-      {paso === 1 && (
-        <>
-          <h2>¿Cuál es tu objetivo?</h2>
-          <div className="grilla-2">
-            {OBJETIVOS.map((o) => (
-              <button key={o} className={`dia-chip ${objetivo === o ? 'activa' : ''}`} onClick={() => setObjetivo(o)}>
-                {o}
-              </button>
-            ))}
-          </div>
-          <Boton disabled={!objetivo} onClick={() => setPaso(2)}>
-            Continuar
-          </Boton>
-        </>
-      )}
-      {paso === 2 && (
-        <>
-          <h2>¿Cuánta experiencia tenés?</h2>
-          <div className="fila">
-            {NIVELES.map((n) => (
-              <button key={n} className={`dia-chip ${nivel === n ? 'activa' : ''}`} onClick={() => setNivel(n)}>
-                {n}
-              </button>
-            ))}
-          </div>
-          <div className="fila">
-            <Boton variante="secundario" onClick={() => setPaso(1)}>
-              Volver
-            </Boton>
-            <Boton disabled={!nivel} onClick={() => setPaso(3)}>
-              Continuar
-            </Boton>
-          </div>
-        </>
-      )}
-      {paso === 3 && (
-        <>
-          <h2>¿Cuántos días por semana entrenás?</h2>
-          <div className="fila">
-            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-              <button key={d} className={`dia-chip ${dias === d ? 'activa' : ''}`} onClick={() => setDias(d)}>
-                {d}
-              </button>
-            ))}
-          </div>
-          <small>No necesitamos datos de salud ni medidas corporales.</small>
-          <div className="fila">
-            <Boton variante="secundario" onClick={() => setPaso(2)}>
-              Volver
-            </Boton>
-            <Boton cargando={accion.enviando} onClick={generar}>
-              Generar mi primera rutina
-            </Boton>
-          </div>
-        </>
-      )}
-    </div>
-  );
+/** Lunes de la semana de una fecha ISO. */
+function lunesDe(fechaIso: string) {
+  const d = new Date(`${fechaIso}T12:00:00Z`).getUTCDay();
+  return sumarDiasIso(fechaIso, d === 0 ? -6 : 1 - d);
 }
 
-/** Inicio del socio: resumen de turnos, cuota, puntos y accesos rápidos. */
+export const iconoEjercicio = (grupo: string) => (/pierna|glúteo|gluteo|cuádriceps|isquio/i.test(grupo) ? 'legs' : /cardio|resistencia/i.test(grupo) ? 'activity' : 'dumbbell');
+
+/** Mi resumen del socio: rutina del día, actividad de la semana, puntos, próximo turno y cuota. */
 export function InicioSocio() {
-  const navegar = useNavigate();
   const perfil = useApi(() => api.get<Perfil>('/socio/perfil'));
   const reservas = useApi(() => api.get<{ proximas: { id: number; turno: Turno }[] }>('/socio/reservas'));
   const cuota = useApi(() => api.get<{ cuota: Cuota | null }>('/socio/cuota'));
+  const asistencias = useApi(() => api.get<Asistencia[]>('/socio/asistencias'));
+  const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/socio/rutina'));
+  const beneficios = useApi(() => api.get<Beneficios>('/socio/beneficios'));
+
   if (perfil.cargando) return <Cargando />;
-  if (perfil.error || !perfil.datos) return <Aviso tipo="error">{perfil.error}</Aviso>;
+  if (perfil.error || !perfil.datos) return <ErrorFormulario>{perfil.error}</ErrorFormulario>;
   const p = perfil.datos;
-  if (!p.preferencia) {
-    return (
-      <div className="pila">
-        <h1>¡Hola, {p.usuario.nombre}!</h1>
-        <p className="tenue">Contanos cómo querés entrenar y armamos tu rutina.</p>
-        <Bienvenida alTerminar={() => navegar('/socio/rutina')} />
-      </div>
-    );
-  }
+  const hoy = hoyIso();
+  const lunes = lunesDe(hoy);
+  const semana = DIAS.map((_, i) => sumarDiasIso(lunes, i));
+  const mes = hoy.slice(0, 7);
+  const asistenciasMes = asistencias.datos?.filter((a) => a.fecha.startsWith(mes)).length ?? 0;
+  const diasConAsistencia = new Set(asistencias.datos?.filter((a) => a.fecha >= lunes).map((a) => a.fecha));
+  const diasReservados = new Set(reservas.datos?.proximas.map((r) => r.turno.fecha));
+  const objetivoSemanal = p.preferencia?.diasPorSemana ?? 3;
   const proxima = reservas.datos?.proximas[0];
+  const c = cuota.datos?.cuota;
+  const ejercicios = rutina.datos?.rutina?.ejercicios ?? [];
+  const diaRutina = ejercicios.length ? Math.min(...ejercicios.map((e) => e.dia)) : 1;
+  const deHoy = ejercicios.filter((e) => e.dia === diaRutina).sort((a, b) => a.orden - b.orden);
+  const sinEquipo = ejercicios.find((e) => !e.disponible);
+  const saldo = beneficios.datos?.saldoPuntos ?? p.saldoPuntos;
+  const costoMinimo = Math.min(...(beneficios.datos?.beneficios.filter((b) => b.disponible).map((b) => b.costoPuntos) ?? []), Infinity);
+  const progreso = Number.isFinite(costoMinimo) ? Math.min(100, Math.round((saldo / costoMinimo) * 100)) : 0;
+  const titulo = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Argentina/Buenos_Aires' }).toUpperCase();
+  const estadoCuota = !c ? '—' : c.estado === 'PAGADA' ? 'Al día' : c.estado === 'IMPAGA' ? 'Impaga' : 'Pendiente';
+
   return (
-    <div className="pila">
-      <div>
-        <h1>¡Hola, {p.usuario.nombre}!</h1>
-        <p className="tenue">
-          {p.sede.nombre} · Plan {p.esPremium ? 'Premium' : 'Básico'}
-        </p>
-      </div>
-      <div className="grilla-3">
-        <div className="tarjeta tarjeta-oscura">
-          <small>Próximo turno</small>
-          {proxima ? (
-            <>
-              <h3>{proxima.turno.actividad}</h3>
+    <>
+      <Encabezado
+        ceja={titulo}
+        titulo={`Hola, ${p.usuario.nombre}.`}
+        subtitulo="Consultá tu rutina, tus próximos turnos y el estado de tu cuota."
+        accion={
+          <BotonEnlace a="/socio/turnos" estilo="outline" icono="plus">
+            Reservar un turno
+          </BotonEnlace>
+        }
+      />
+      <section className="dashboard-hero">
+        <img src={hero} alt="Entrenamiento con mancuernas" width={1536} height={1024} />
+        <div className="dash-hero-content">
+          <div className="eyebrow">ENTRENAMIENTO DE HOY</div>
+          <h2>{ejercicios.length ? 'Tu rutina está lista.' : 'Armemos tu rutina.'}</h2>
+          <p>{ejercicios.length ? `${p.preferencia?.objetivo ?? 'Tu objetivo'} · ${deHoy.length} ejercicios · Sede ${p.sede.nombre}.` : 'Elegí tu objetivo y generá tu primera rutina personalizada.'}</p>
+          <BotonEnlace a={ejercicios.length ? '/socio/rutina' : '/socio/bienvenida'} estilo="mint" icono="arrow">
+            {ejercicios.length ? 'Ver mi entrenamiento' : 'Personalizar mi rutina'}
+          </BotonEnlace>
+        </div>
+        <div className="hero-bottom-tag">
+          <Icono n="sparkles" />
+          Mi entrenamiento
+        </div>
+      </section>
+
+      <section className="kpi-grid" aria-label="Tu actividad">
+        <Kpi etiqueta="Asistencias este mes" valor={asistenciasMes} unidad="sesiones" pie="Asistencias registradas" icono="calendar" />
+        <Kpi etiqueta="Objetivo semanal" valor={objetivoSemanal} unidad="días" pie={`${diasConAsistencia.size} de ${objetivoSemanal} entrenamientos`} icono="target" />
+        <Kpi etiqueta="Mis puntos" valor={saldo} unidad="pts" pie="Cada asistencia suma" icono="gift" />
+        <Kpi etiqueta="Mi cuota" valor={estadoCuota} pie={c ? (c.estado === 'PAGADA' ? 'Comprobante disponible' : `Vence el ${fechaLarga(c.fechaVencimiento, false)}`) : undefined} icono="wallet" />
+      </section>
+
+      <div className="dashboard-grid">
+        <div className="stack">
+          <section className="card">
+            <CabeceraTarjeta titulo="Actividad de la semana" subtitulo="Asistencias y entrenamientos planificados." accion={<Insignia color="neutral">Esta semana</Insignia>} />
+            <div className="spread">
               <div>
-                {diaSemanaCorto(proxima.turno.fecha)} · {proxima.turno.horaInicio} h
+                <div className="kpi-value" style={{ fontSize: 27 }}>
+                  {diasConAsistencia.size} <small>entrenamientos</small>
+                </div>
+                <p className="week-stat">Objetivo: {objetivoSemanal} entrenamientos</p>
               </div>
-              <Link to="/socio/qr" className="btn btn-acento btn-chico" style={{ marginTop: '0.6rem' }}>
-                Mi QR de ingreso
-              </Link>
-            </>
-          ) : (
-            <>
-              <p>No tenés turnos reservados.</p>
-              <Link to="/socio/turnos" className="btn btn-acento btn-chico">
-                Reservar
-              </Link>
-            </>
+              <span className="badge">Cada asistencia suma puntos</span>
+            </div>
+            <div className="chart" aria-label="Días con asistencia confirmada de esta semana">
+              {semana.map((d, i) => {
+                const asistio = diasConAsistencia.has(d);
+                const reservado = diasReservados.has(d);
+                return (
+                  <div key={d} className="chart-column">
+                    <div className={`chart-bar ${asistio ? 'highlight' : ''}`.trim()} style={{ ['--h' as string]: asistio ? '100%' : reservado ? '45%' : '5%' }} />
+                    <small>{DIAS[i]}</small>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="chart-legend">
+              <span>
+                <i />
+                Asistencia registrada
+              </span>
+              <span>
+                <i className="pale" />
+                Reserva pendiente de ingreso
+              </span>
+            </div>
+          </section>
+
+          <section className="card">
+            <CabeceraTarjeta
+              titulo="Tu entrenamiento de hoy"
+              subtitulo={ejercicios.length ? `${p.preferencia?.objetivo ?? ''} · ${deHoy.length} ejercicios` : 'Todavía no generaste tu rutina.'}
+              accion={<EnlaceTexto a="/socio/rutina">Ver rutina</EnlaceTexto>}
+            />
+            {deHoy.slice(0, 3).map((e) => (
+              <div key={e.id} className="routine-mini">
+                <div className="exercise-icon">
+                  <Icono n={iconoEjercicio(e.grupoMuscular)} />
+                </div>
+                <div>
+                  <h4>{e.nombre}</h4>
+                  <p>
+                    {e.series} series · {e.repeticiones} repeticiones
+                  </p>
+                </div>
+                <Insignia color="neutral">{e.pesoKg !== null ? `${e.pesoKg} kg` : 'Peso libre'}</Insignia>
+              </div>
+            ))}
+            {!ejercicios.length && <Vacio titulo="Sin rutina por ahora" descripcion="Generala en tres pasos según tu objetivo." icono="dumbbell" />}
+            <div className="routine-card-footer">
+              <p>
+                <Icono n="clock" /> {Math.max(20, deHoy.length * 11)} min · Descansos incluidos
+              </p>
+              <BotonEnlace a={ejercicios.length ? '/socio/rutina' : '/socio/bienvenida'} estilo="soft" chico icono="arrow">
+                {ejercicios.length ? 'Empezar rutina' : 'Generar rutina'}
+              </BotonEnlace>
+            </div>
+          </section>
+        </div>
+
+        <div className="stack">
+          <section className="points-card">
+            <div className="eyebrow">BENEFICIOS POR ASISTENCIA</div>
+            <h2 className="points-title">Mis puntos</h2>
+            <div className="points-row">
+              <div className="points-number">
+                {saldo}
+                <small>puntos</small>
+              </div>
+              <div className="points-graphic">
+                <Icono n="gift" />
+              </div>
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${progreso}%` }} />
+            </div>
+            <p>{progreso >= 100 ? 'Ya podés canjear un beneficio. Elegí el tuyo.' : Number.isFinite(costoMinimo) ? `Te faltan ${costoMinimo - saldo} puntos para tu próximo beneficio.` : 'Seguí sumando puntos con cada asistencia.'}</p>
+            <BotonEnlace a="/socio/beneficios" estilo="outline" icono="arrow">
+              Descubrir mis beneficios
+            </BotonEnlace>
+          </section>
+
+          <section className="card">
+            <CabeceraTarjeta titulo="Tu próximo turno" subtitulo={proxima ? 'Reserva confirmada.' : 'Sin reservas próximas.'} />
+            {proxima ? (
+              <>
+                <div className="appointment">
+                  <div className="date-square">
+                    <small>{new Date(`${proxima.turno.fecha}T12:00:00`).toLocaleDateString('es-AR', { month: 'short' }).replace('.', '').toUpperCase()}</small>
+                    <strong>{Number(proxima.turno.fecha.slice(8, 10))}</strong>
+                  </div>
+                  <div>
+                    <h4>{proxima.turno.actividad}</h4>
+                    <p>
+                      {new Date(`${proxima.turno.fecha}T12:00:00`).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'short' }).replace('.', '')} · {proxima.turno.horaInicio} a{' '}
+                      {proxima.turno.horaFin}
+                    </p>
+                    <p>Sede {proxima.turno.sede}</p>
+                  </div>
+                </div>
+                <div className="booking-foot">
+                  <Insignia>Confirmado</Insignia>
+                  <EnlaceTexto a="/socio/turnos">Mis turnos</EnlaceTexto>
+                </div>
+              </>
+            ) : (
+              <Vacio titulo="No tenés turnos reservados" descripcion="Elegí un horario disponible en tu sede." icono="calendar" accion={<BotonEnlace a="/socio/turnos" chico icono="plus">Reservar</BotonEnlace>} />
+            )}
+          </section>
+
+          {sinEquipo && (
+            <aside className="soft-alert">
+              <Icono n="tool" />
+              <div>
+                <h4>Hay una variante para tu rutina</h4>
+                <p>{sinEquipo.equipos.find((q) => q.estado !== 'OPERATIVO')?.nombre ?? 'Un equipo'} no está disponible. Podés elegir una alternativa y mantener tu turno.</p>
+                <Link to="/socio/rutina">Ver sugerencia de ejercicio</Link>
+              </div>
+            </aside>
           )}
         </div>
-        <div className="tarjeta">
-          <small>Cuota del período</small>
-          {cuota.datos?.cuota ? (
-            <>
-              <div className="kpi importe">{dinero(cuota.datos.cuota.importeFinal)}</div>
-              <Estado valor={cuota.datos.cuota.estado} />
-              <div>
-                <Link to="/socio/cuotas">Ver cuotas y pagos</Link>
-              </div>
-            </>
-          ) : (
-            <p className="tenue">Sin cuotas registradas.</p>
-          )}
-        </div>
-        <Kpi titulo="Mis puntos" valor={p.saldoPuntos} detalle="Sumás puntos con cada día de asistencia." />
       </div>
-      <div className="grilla-2">
-        <Link to="/socio/rutina" className="tarjeta" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h3>Mi rutina →</h3>
-          <p className="tenue">Consultá tu rutina, marcá ejercicios y registrá tu entrenamiento.</p>
-        </Link>
-        <Link to={p.esPremium ? '/socio/profesionales' : '/socio/perfil'} className="tarjeta" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <h3>Profesionales →</h3>
-          <p className="tenue">{p.esPremium ? 'Consultas con nutricionistas y deportólogos.' : 'Disponible con el Plan Premium.'}</p>
-        </Link>
-      </div>
-    </div>
+    </>
   );
 }
