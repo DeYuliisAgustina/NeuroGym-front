@@ -67,4 +67,4 @@ Accesos:
 - `/admin/ingreso`: personal del gimnasio (acceso separado, RF14).
 - `/profesionales/registro`: registro autónomo de profesionales (RF28).
 
-En desarrollo, sin credenciales de Mercado Pago, los pagos se completan en `/simulador-pago` (no se realizan cobros reales).
+Sin credenciales de prueba de Mercado Pago el pago en línea aparece deshabilitado: no hay simulador ni cobros reales. El pago único vuelve a `/socio/pagos?resultado=...&pago={id}` y el backend confirma la orden consultando la API de Orders.

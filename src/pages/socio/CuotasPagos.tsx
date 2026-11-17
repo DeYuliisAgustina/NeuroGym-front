@@ -69,13 +69,14 @@ export function CuotasPagos() {
   const accion = useAccion();
 
   // Regreso desde Mercado Pago: el backend confirma consultando la API oficial (no se confía en la URL).
+  // El pago único (orden de Checkout Pro) vuelve con el id interno del pago; la adhesión, con preapproval_id.
   useEffect(() => {
     const resultado = parametros.get('resultado');
-    const paymentId = parametros.get('payment_id');
+    const pagoId = parametros.get('pago');
     const preapprovalId = parametros.get('preapproval_id');
-    if (!resultado && !paymentId && !preapprovalId) return;
-    const confirmar = paymentId
-      ? api.post<{ aprobado?: boolean }>('/pagos/confirmacion', { paymentId })
+    if (!resultado && !pagoId && !preapprovalId) return;
+    const confirmar = pagoId
+      ? api.post<{ aprobado?: boolean }>('/pagos/confirmacion', { pagoId: Number(pagoId) })
       : preapprovalId
         ? api.post<{ autorizada?: boolean }>('/pagos/confirmacion', { preapprovalId })
         : Promise.resolve(null);
