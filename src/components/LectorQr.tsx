@@ -1,6 +1,7 @@
 import { Html5Qrcode } from 'html5-qrcode';
 import { useEffect, useRef, useState } from 'react';
-import { Aviso, Boton } from './ui';
+import { Icono } from './Icono';
+import { Boton } from './ui';
 
 /**
  * CU-004-001: lectura del QR con la cámara de una computadora, celular o tablet,
@@ -44,13 +45,24 @@ export function LectorQr({ alLeer }: { alLeer: (codigo: string) => void }) {
   };
 
   return (
-    <div className="pila">
-      <div id="lector-qr" style={{ width: '100%', maxWidth: 380, minHeight: activa ? 280 : 0 }} />
-      <Aviso tipo="alerta">{error}</Aviso>
+    <div className="scan-zone">
+      <div id="lector-qr" style={{ width: '100%', maxWidth: 380, margin: '0 auto', display: activa ? 'block' : 'none' }} />
+      {!activa && (
+        <>
+          <Icono n="camera" />
+          <h3>Acercá el código a la cámara</h3>
+          <p>La cámara se activa solo cuando la solicitás.</p>
+        </>
+      )}
+      {error && <small role="alert">{error}</small>}
       {activa ? (
-        <Boton variante="secundario" onClick={detener}>Detener cámara</Boton>
+        <Boton estilo="outline" icono="close" onClick={detener}>
+          Detener cámara
+        </Boton>
       ) : (
-        <Boton onClick={activar}>Activar cámara</Boton>
+        <Boton estilo="outline" icono="camera" onClick={activar}>
+          Activar cámara
+        </Boton>
       )}
     </div>
   );

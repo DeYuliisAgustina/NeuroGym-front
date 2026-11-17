@@ -1,151 +1,149 @@
 import { useState } from 'react';
-import { Aviso, Boton, Campo, Cargando, EncabezadoPagina, Estado, Modal, Selector, Vacio } from '../../components/ui';
+import { Icono } from '../../components/Icono';
+import { Boton, BotonEnlace, Encabezado, ErrorFormulario, Insignia, Vacio } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccion, useApi } from '../../hooks/useApi';
+import { useSedeVista } from '../../contexts/SedeContext';
+import { useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Sede, Turno } from '../../types';
-import { diaSemanaCorto, fecha, hoyIso, sumarDiasIso } from '../../utils/formato';
+import { fechaCorta, hoyIso } from '../../utils/formato';
 
-const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+interface ReservaTurno {
+  id: number;
+  estado: string;
+  socio: { usuario: { nombre: string; apellido: string } };
+  asistencia: { fechaHoraReal: string; forma: string } | null;
+}
+interface Fila extends ReservaTurno {
+  turno: Turno;
+}
 
-/** Horarios, actividades y cupos (RF16). Los cambios no alteran reservas existentes (RD23). */
+const hora = (f: string) => new Date(f).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Argentina/Buenos_Aires' });
+const estadoDe = (r: Fila) => (r.asistencia ? 'Asistió' : r.estado === 'CANCELADO' ? 'Cancelado' : 'Confirmado');
+
+/** Turnos y asistencia: reservas del día por sede y su ingreso validado (la reserva no es asistencia). */
 export function TurnosAdmin() {
   const { puede } = useAuth();
-  const gestion = puede('SEDES', 'GESTION');
+  const { sedeId, setSedeId } = useSedeVista();
+  const [filtros, setFiltros] = useState({ busqueda: '', fecha: hoyIso(), estado: '' });
   const sedes = useApi(() => api.get<Sede[]>('/admin/sedes'));
-  const [filtros, setFiltros] = useState({ sedeId: '', desde: hoyIso(), hasta: sumarDiasIso(hoyIso(), 7) });
-  const turnos = useApi(() => api.get<Turno[]>('/admin/turnos', filtros), [filtros.sedeId, filtros.desde, filtros.hasta]);
-  const [serie, setSerie] = useState<null | { sedeId: string; actividad: string; horaInicio: string; horaFin: string; cupo: number; desde: string; hasta: string; diasSemana: number[] }>(null);
-  const [editando, setEditando] = useState<Turno | null>(null);
-  const [reservas, setReservas] = useState<{ turno: Turno; lista: { id: number; estado: string; socio: { usuario: { nombre: string; apellido: string } }; asistencia: unknown }[] } | null>(null);
-  const accion = useAccion();
+  const filas = useApi(async () => {
+    const turnos = await api.get<Turno[]>('/admin/turnos', { desde: filtros.fecha, hasta: filtros.fecha, ...(sedeId ? { sedeId } : {}) });
+    const reservas = await Promise.all(turnos.map((t) => api.get<ReservaTurno[]>(`/admin/turnos/${t.id}/reservas`).then((l) => l.map((r) => ({ ...r, turno: t })))));
+    return reservas.flat().sort((a, b) => a.turno.horaInicio.localeCompare(b.turno.horaInicio));
+  }, [filtros.fecha, sedeId]);
 
-  const crearSerie = async () => {
-    if (!serie!.sedeId || !serie!.actividad.trim() || serie!.diasSemana.length === 0) return accion.setError('Completá sede, actividad y días.');
-    const r = await accion.ejecutar(() => api.post<{ creados: number }>('/admin/turnos/serie', { ...serie, sedeId: Number(serie!.sedeId) }));
-    if (r) {
-      accion.setExito(`Se crearon ${r.creados} turnos.`);
-      setSerie(null);
-      void turnos.recargar();
-    }
-  };
-  const guardarEdicion = async () => {
-    const { id, actividad, cupo, fecha: f, horaInicio, horaFin } = editando!;
-    if (await accion.ejecutar(() => api.put(`/admin/turnos/${id}`, { actividad, cupo, fecha: f, horaInicio, horaFin }), 'Turno actualizado.')) {
-      setEditando(null);
-      void turnos.recargar();
-    }
-  };
-  const habilitar = async (t: Turno) => {
-    if (await accion.ejecutar(() => api.patch(`/admin/turnos/${t.id}/habilitacion`, { habilitado: !t.habilitado }), t.habilitado ? 'El turno dejó de admitir nuevas reservas.' : 'Turno habilitado.')) void turnos.recargar();
-  };
-  const verReservas = async (t: Turno) => {
-    const lista = await accion.ejecutar(() => api.get<NonNullable<typeof reservas>['lista']>(`/admin/turnos/${t.id}/reservas`));
-    if (lista) setReservas({ turno: t, lista });
+  const q = filtros.busqueda.trim().toLowerCase();
+  const lista = (filas.datos ?? []).filter(
+    (r) =>
+      (!q || `${r.socio.usuario.nombre} ${r.socio.usuario.apellido}`.toLowerCase().includes(q) || r.turno.actividad.toLowerCase().includes(q)) && (!filtros.estado || estadoDe(r) === filtros.estado),
+  );
+  const limpiar = () => {
+    setFiltros({ busqueda: '', fecha: hoyIso(), estado: '' });
+    setSedeId('');
   };
 
   return (
-    <div>
-      <EncabezadoPagina
-        titulo="Horarios y cupos"
-        acciones={gestion && <Boton onClick={() => setSerie({ sedeId: '', actividad: 'Musculación', horaInicio: '18:00', horaFin: '19:30', cupo: 30, desde: hoyIso(), hasta: sumarDiasIso(hoyIso(), 28), diasSemana: [1, 3, 5] })}>Programar turnos</Boton>}
+    <>
+      <Encabezado
+        ceja="OPERACIÓN DIARIA"
+        titulo="Turnos y asistencia"
+        subtitulo="Una reserva guarda el lugar; el ingreso validado confirma la asistencia."
+        accion={
+          puede('RECEPCION') && (
+            <BotonEnlace a="/admin/recepcion" icono="camera">
+              Ir a recepción
+            </BotonEnlace>
+          )
+        }
       />
-      <Aviso tipo="error">{accion.error}</Aviso>
-      <Aviso tipo="exito">{accion.exito}</Aviso>
-      <div className="tarjeta">
-        <div className="grilla-3">
-          <Selector etiqueta="Sede" vacio="Todas" value={filtros.sedeId} onChange={(e) => setFiltros({ ...filtros, sedeId: e.target.value })} opciones={(sedes.datos ?? []).map((s) => ({ valor: s.id, texto: s.nombre }))} />
-          <Campo etiqueta="Desde" type="date" value={filtros.desde} onChange={(e) => setFiltros({ ...filtros, desde: e.target.value })} />
-          <Campo etiqueta="Hasta" type="date" value={filtros.hasta} onChange={(e) => setFiltros({ ...filtros, hasta: e.target.value })} />
-        </div>
-        {turnos.cargando && <Cargando />}
-        {turnos.datos?.length === 0 && <Vacio>No hay turnos en el período.</Vacio>}
-        <div className="tabla-scroll">
-          <table>
+      <div className="list-filters" aria-label="Filtros de búsqueda">
+        <label className="filter-field filter-search">
+          <span>Buscar</span>
+          <div className="search-input">
+            <Icono n="search" />
+            <input type="search" aria-label="Buscar socio o actividad" placeholder="Buscar socio o actividad" value={filtros.busqueda} onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })} />
+          </div>
+        </label>
+        <label className="filter-field">
+          <span>Sede</span>
+          <select aria-label="Filtrar por sede" value={sedeId} onChange={(e) => setSedeId(e.target.value)}>
+            <option value="">Todas las sedes</option>
+            {sedes.datos?.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="filter-field">
+          <span>Fecha</span>
+          <input type="date" aria-label="Fecha" value={filtros.fecha} onChange={(e) => setFiltros({ ...filtros, fecha: e.target.value || hoyIso() })} />
+        </label>
+        <label className="filter-field">
+          <span>Estado</span>
+          <select aria-label="Estado" value={filtros.estado} onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}>
+            <option value="">Todos</option>
+            <option>Confirmado</option>
+            <option>Asistió</option>
+            <option>Cancelado</option>
+          </select>
+        </label>
+        <Boton estilo="outline" chico icono="refresh" className="clear-filters" onClick={limpiar}>
+          Limpiar filtros
+        </Boton>
+      </div>
+      <section className="card">
+        <div className="table-wrap">
+          <table className="data-table">
             <thead>
-              <tr><th>Fecha</th><th>Horario</th><th>Actividad</th><th>Sede</th><th>Reservas</th><th>Estado</th><th /></tr>
+              <tr>
+                <th>Socio</th>
+                <th>Actividad / sede</th>
+                <th>Reserva</th>
+                <th>Estado</th>
+                <th>Llegada</th>
+                <th>Acciones</th>
+              </tr>
             </thead>
             <tbody>
-              {turnos.datos?.map((t) => (
-                <tr key={t.id}>
-                  <td>{diaSemanaCorto(t.fecha)}</td>
-                  <td>{t.horaInicio}–{t.horaFin}</td>
-                  <td>{t.actividad}</td>
-                  <td>{t.sede}</td>
-                  <td>
-                    <button className="btn btn-texto btn-chico" onClick={() => verReservas(t)}>{t.reservadas}/{t.cupo}</button>
-                  </td>
-                  <td>{t.habilitado ? <span className="etiqueta etiqueta-ok">Habilitado</span> : <span className="etiqueta">Sin nuevas reservas</span>}</td>
-                  <td>
-                    {gestion && (
-                      <div className="fila">
-                        <Boton variante="texto" chico onClick={() => setEditando(t)}>Editar</Boton>
-                        <Boton variante="texto" chico onClick={() => habilitar(t)}>{t.habilitado ? 'Deshabilitar' : 'Habilitar'}</Boton>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {lista.map((r) => {
+                const estado = estadoDe(r);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <strong>
+                        {r.socio.usuario.nombre} {r.socio.usuario.apellido}
+                      </strong>
+                    </td>
+                    <td>
+                      {r.turno.actividad}
+                      <small>{r.turno.sede}</small>
+                    </td>
+                    <td>
+                      {fechaCorta(r.turno.fecha)} · {r.turno.horaInicio}
+                    </td>
+                    <td>
+                      <Insignia color={estado === 'Cancelado' ? 'neutral' : ''}>{estado}</Insignia>
+                    </td>
+                    <td>{r.asistencia ? `${hora(r.asistencia.fechaHoraReal)} · ${r.asistencia.forma === 'QR' ? 'QR' : 'Manual'}` : 'Sin ingreso validado'}</td>
+                    <td>
+                      {!r.asistencia && estado === 'Confirmado' && puede('RECEPCION') && (
+                        <BotonEnlace a="/admin/recepcion" estilo="outline" chico icono="camera">
+                          Validar ingreso
+                        </BotonEnlace>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
-
-      <Modal titulo="Programar turnos" abierto={!!serie} onCerrar={() => setSerie(null)}>
-        {serie && (
-          <>
-            <Aviso tipo="error">{accion.error}</Aviso>
-            <Selector etiqueta="Sede" vacio="Elegí una sede" value={serie.sedeId} onChange={(e) => setSerie({ ...serie, sedeId: e.target.value })} opciones={(sedes.datos ?? []).filter((s) => s.habilitada).map((s) => ({ valor: s.id, texto: s.nombre }))} />
-            <Campo etiqueta="Actividad" value={serie.actividad} onChange={(e) => setSerie({ ...serie, actividad: e.target.value })} />
-            <div className="grilla-3">
-              <Campo etiqueta="Inicio" type="time" value={serie.horaInicio} onChange={(e) => setSerie({ ...serie, horaInicio: e.target.value })} />
-              <Campo etiqueta="Fin" type="time" value={serie.horaFin} onChange={(e) => setSerie({ ...serie, horaFin: e.target.value })} />
-              <Campo etiqueta="Cupo" type="number" min={1} value={serie.cupo} onChange={(e) => setSerie({ ...serie, cupo: Number(e.target.value) })} />
-              <Campo etiqueta="Desde" type="date" value={serie.desde} onChange={(e) => setSerie({ ...serie, desde: e.target.value })} />
-              <Campo etiqueta="Hasta" type="date" value={serie.hasta} onChange={(e) => setSerie({ ...serie, hasta: e.target.value })} />
-            </div>
-            <div className="fila" style={{ marginBottom: '1rem' }}>
-              {DIAS.map((d, i) => (
-                <button
-                  key={d}
-                  className={`dia-chip ${serie.diasSemana.includes(i + 1) ? 'activa' : ''}`}
-                  onClick={() => setSerie({ ...serie, diasSemana: serie.diasSemana.includes(i + 1) ? serie.diasSemana.filter((x) => x !== i + 1) : [...serie.diasSemana, i + 1] })}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-            <Boton bloque cargando={accion.enviando} onClick={crearSerie}>Crear turnos</Boton>
-          </>
-        )}
-      </Modal>
-
-      <Modal titulo="Modificar turno" abierto={!!editando} onCerrar={() => setEditando(null)}>
-        {editando && (
-          <>
-            <Aviso tipo="error">{accion.error}</Aviso>
-            {editando.reservadas > 0 && <Aviso tipo="info">El turno tiene {editando.reservadas} reservas: no se pueden cambiar la fecha ni el horario, y el cupo no puede ser menor.</Aviso>}
-            <Campo etiqueta="Actividad" value={editando.actividad} onChange={(e) => setEditando({ ...editando, actividad: e.target.value })} />
-            <div className="grilla-2">
-              <Campo etiqueta="Fecha" type="date" disabled={editando.reservadas > 0} value={editando.fecha} onChange={(e) => setEditando({ ...editando, fecha: e.target.value })} />
-              <Campo etiqueta="Cupo" type="number" min={Math.max(1, editando.reservadas)} value={editando.cupo} onChange={(e) => setEditando({ ...editando, cupo: Number(e.target.value) })} />
-              <Campo etiqueta="Inicio" type="time" disabled={editando.reservadas > 0} value={editando.horaInicio} onChange={(e) => setEditando({ ...editando, horaInicio: e.target.value })} />
-              <Campo etiqueta="Fin" type="time" disabled={editando.reservadas > 0} value={editando.horaFin} onChange={(e) => setEditando({ ...editando, horaFin: e.target.value })} />
-            </div>
-            <Boton bloque cargando={accion.enviando} onClick={guardarEdicion}>Guardar</Boton>
-          </>
-        )}
-      </Modal>
-
-      <Modal titulo={reservas ? `Reservas · ${reservas.turno.actividad} ${fecha(reservas.turno.fecha)} ${reservas.turno.horaInicio}` : ''} abierto={!!reservas} onCerrar={() => setReservas(null)}>
-        {reservas?.lista.length === 0 && <Vacio>Sin reservas.</Vacio>}
-        {reservas?.lista.map((r) => (
-          <div key={r.id} className="fila-entre">
-            <span>{r.socio.usuario.apellido}, {r.socio.usuario.nombre}</span>
-            {r.asistencia ? <span className="etiqueta etiqueta-ok">Asistió</span> : <Estado valor={r.estado} />}
-          </div>
-        ))}
-      </Modal>
-    </div>
+        {filas.datos && lista.length === 0 && <Vacio titulo="No hay reservas para estos filtros" descripcion="Probá con otra fecha, otra sede o limpiá los filtros." icono="calendar" />}
+        <ErrorFormulario>{filas.error}</ErrorFormulario>
+      </section>
+      <p className="page-note">Los horarios y cupos de cada sede se gestionan desde Sedes. La cancelación de una reserva la realiza el socio desde su cuenta.</p>
+    </>
   );
 }
