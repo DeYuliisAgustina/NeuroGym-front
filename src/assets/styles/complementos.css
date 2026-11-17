@@ -21,4 +21,8 @@
   @media (max-width: 640px) {
     .ficha-resumen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
+
+  /* Cuotas y pagos: elección de la cuota a abonar (período en curso o una vencida anterior). */
+  .cuota-selector { display: grid; gap: 12px; margin-bottom: 22px; }
+  .cuota-selector .filter-field { max-width: 360px; }
 }

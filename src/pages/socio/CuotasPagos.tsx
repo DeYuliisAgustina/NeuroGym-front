@@ -12,6 +12,8 @@ import { dinero, fechaCorta, fechaLarga, mesAnio, MEDIO_PROTOTIPO } from '../../
 
 interface Detalle {
   cuota: Cuota | null;
+  /** Cuotas anteriores sin pagar: se eligen y regularizan por separado. */
+  adeudadas: Cuota[];
   adhesion: { id: number; fechaAlta: string; idPreaprobacion: string } | null;
   importes: Record<MedioPago, ComposicionImporte> | null;
 }
@@ -62,6 +64,12 @@ export function CuotasPagos() {
   };
   const historial = useApi(() => api.get<PagoHistorial[]>('/socio/pagos', consulta), [filtros.busqueda, filtros.medio, filtros.fecha]);
   const [medio, setMedio] = useState<MedioPago>('PAGO_UNICO');
+  // Cuota que se abona: por defecto la del período; el socio puede elegir una vencida anterior.
+  const [cuotaElegidaId, setCuotaElegidaId] = useState<number | null>(null);
+  const importesElegida = useApi(
+    () => (cuotaElegidaId ? api.get<Record<MedioPago, ComposicionImporte>>(`/cuotas/${cuotaElegidaId}/medios`) : Promise.resolve(null)),
+    [cuotaElegidaId],
+  );
   const [modal, setModal] = useState<'pago' | 'adhesion' | 'debito' | 'premium' | 'efectivo' | null>(null);
   const [autorizo, setAutorizo] = useState(false);
   const [comprobante, setComprobante] = useState<Comprobante | null>(null);
@@ -100,18 +108,40 @@ export function CuotasPagos() {
 
   if (detalle.cargando || perfil.cargando) return <Cargando />;
   if (detalle.error) return <ErrorFormulario>{detalle.error}</ErrorFormulario>;
-  const { cuota, adhesion, importes } = detalle.datos!;
+  const { cuota: delPeriodo, adhesion, importes: importesPeriodo } = detalle.datos!;
+  const adeudadas = detalle.datos!.adeudadas ?? [];
+  const elegidaVencida = adeudadas.find((c) => c.id === cuotaElegidaId);
+  // La cuota que se muestra y se abona: la del período o la vencida que eligió el socio.
+  const cuota = elegidaVencida ?? delPeriodo;
+  const importes = elegidaVencida ? importesElegida.datos : importesPeriodo;
   const precios = perfil.datos?.preciosPlanes;
   const esPremium = !!perfil.datos?.esPremium;
   const planTexto = esPremium ? 'Premium' : 'Básico';
-  const seleccion = importes?.[medio];
-  const debito = importes?.DEBITO_AUTOMATICO;
+  const habilitados = cuota?.mediosHabilitados ?? OPCIONES.map((o) => o.medio);
+  const opciones = OPCIONES.filter((o) => habilitados.includes(o.medio));
+  const medioActivo = habilitados.includes(medio) ? medio : (opciones.at(-1)?.medio ?? 'PAGO_UNICO');
+  const seleccion = importes?.[medioActivo];
+  // Importe del débito: el informado por el backend o, con la cuota del período pagada, el del plan con 10 %.
+  const totalPlan = (precios?.cuotaBase ?? 0) + (esPremium ? (precios?.adicionalPremium ?? 0) : 0);
+  const debito: ComposicionImporte | undefined =
+    importesPeriodo?.DEBITO_AUTOMATICO ??
+    (precios
+      ? ({
+          medio: 'DEBITO_AUTOMATICO',
+          cuotaBase: precios.cuotaBase,
+          adicionalPremium: esPremium ? precios.adicionalPremium : 0,
+          descuento: Math.round(totalPlan * 0.1 * 100) / 100,
+          importeFinal: conDebito(totalPlan),
+        } as ComposicionImporte)
+      : undefined);
   const modoPrueba = integracion.datos?.mercadoPago === 'PRUEBA';
-  const pendiente = cuota && cuota.estado !== 'PAGADA';
+  const pendiente = cuota && cuota.estado !== 'PAGADA' && !cuota.debitoProgramado;
 
+  // El débito automático siempre se gestiona sobre la cuota del período en curso.
   const iniciar = async (m: MedioPago) => {
-    if (!cuota) return;
-    const r = await accion.ejecutar(() => api.post<ResultadoPago>(`/cuotas/${cuota.id}/pagos`, { medio: m }));
+    const destino = m === 'DEBITO_AUTOMATICO' ? delPeriodo : cuota;
+    if (!destino) return;
+    const r = await accion.ejecutar(() => api.post<ResultadoPago>(`/cuotas/${destino.id}/pagos`, { medio: m }));
     if (!r) return;
     if (r.tipo === 'REDIRECCION') window.location.href = r.url; // CU-001-006: se completa en Mercado Pago
     else if (r.tipo === 'DEBITO_PROGRAMADO') {
@@ -155,6 +185,8 @@ export function CuotasPagos() {
           cuota &&
           (cuota.estado === 'PAGADA' ? (
             <Insignia>Cuota al día</Insignia>
+          ) : cuota.debitoProgramado ? (
+            <Insignia color="neutral">Débito automático programado</Insignia>
           ) : cuota.estado === 'IMPAGA' ? (
             <Insignia color="danger">Venció el {fechaLarga(cuota.fechaVencimiento, false)}</Insignia>
           ) : (
@@ -203,20 +235,72 @@ export function CuotasPagos() {
             {!cuota && <Vacio titulo="No tenés cuotas registradas" descripcion="La cuota del período aparecerá en este espacio." icono="wallet" />}
             {cuota && (
               <>
+                {adeudadas.length > 0 && (
+                  <div className="cuota-selector">
+                    <label className="filter-field">
+                      <span>Cuota a abonar</span>
+                      <select
+                        aria-label="Cuota a abonar"
+                        value={cuotaElegidaId ?? ''}
+                        onChange={(e) => {
+                          accion.limpiar();
+                          setCuotaElegidaId(e.target.value ? Number(e.target.value) : null);
+                        }}
+                      >
+                        {delPeriodo && (
+                          <option value="">
+                            {mesAnio(delPeriodo.periodo)} · período en curso
+                          </option>
+                        )}
+                        {adeudadas.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {mesAnio(c.periodo)} · {c.estado === 'IMPAGA' ? 'vencida' : 'pendiente'}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Nota icono="warning">
+                      Tenés {adeudadas.length === 1 ? 'una cuota anterior' : `${adeudadas.length} cuotas anteriores`} sin pagar. Cada cuota se abona por separado y pagar una no modifica las demás.
+                    </Nota>
+                  </div>
+                )}
                 <div className="spread">
                   <div className="eyebrow">CUOTA DEL GIMNASIO</div>
-                  {cuota.estado === 'PAGADA' ? <Insignia>Pagada</Insignia> : cuota.estado === 'IMPAGA' ? <Insignia color="danger">Impaga</Insignia> : <Insignia color="warning">Pendiente</Insignia>}
+                  {cuota.estado === 'PAGADA' ? (
+                    <Insignia>Pagada</Insignia>
+                  ) : cuota.debitoProgramado ? (
+                    <Insignia color="neutral">Débito automático programado</Insignia>
+                  ) : cuota.estado === 'IMPAGA' ? (
+                    <Insignia color="danger">Impaga</Insignia>
+                  ) : (
+                    <Insignia color="warning">Pendiente</Insignia>
+                  )}
                 </div>
                 <h2>{mesAnio(cuota.periodo)}</h2>
-                {pendiente && importes ? (
+                {cuota.debitoProgramado ? (
+                  <>
+                    <div className="amount">
+                      {dinero(debito?.importeFinal ?? cuota.importeFinal)}
+                      <small>ARS</small>
+                    </div>
+                    <p>Débito automático · Plan {planTexto}</p>
+                    <div className="fee-breakdown">
+                      {debito && <Composicion cuotaBase={debito.cuotaBase} adicionalPremium={debito.adicionalPremium} descuento={debito.descuento} plan={planTexto} />}
+                      <FilaDato etiqueta="Vencimiento">{fechaLarga(cuota.fechaVencimiento)}</FilaDato>
+                    </div>
+                    <Nota icono="refresh">
+                      Mercado Pago debita esta cuota con tu adhesión. Cuando se confirme, pasa a pagada y recibís el comprobante. Si el débito se rechaza, vas a poder pagarla con Mercado Pago o en efectivo.
+                    </Nota>
+                  </>
+                ) : pendiente && importes ? (
                   <>
                     <div className="payment-options" role="group" aria-label="Medio de pago">
-                      {OPCIONES.map((o) => (
+                      {opciones.map((o) => (
                         <button
                           key={o.medio}
                           type="button"
-                          className={`payment-option ${medio === o.medio ? 'selected' : ''}`.trim()}
-                          aria-pressed={medio === o.medio}
+                          className={`payment-option ${medioActivo === o.medio ? 'selected' : ''}`.trim()}
+                          aria-pressed={medioActivo === o.medio}
                           onClick={() => setMedio(o.medio)}
                         >
                           <span>{o.texto}</span>
@@ -230,18 +314,18 @@ export function CuotasPagos() {
                       <small>ARS</small>
                     </div>
                     <p>
-                      {MEDIO_PROTOTIPO[medio]} · Plan {planTexto}
+                      {MEDIO_PROTOTIPO[medioActivo]} · Plan {planTexto}
                     </p>
                     <div className="fee-breakdown">
                       {seleccion && <Composicion cuotaBase={seleccion.cuotaBase} adicionalPremium={seleccion.adicionalPremium} descuento={seleccion.descuento} plan={planTexto} />}
                       <FilaDato etiqueta="Vencimiento">{fechaLarga(cuota.fechaVencimiento)}</FilaDato>
                     </div>
-                    {medio === 'PAGO_UNICO' && (
+                    {medioActivo === 'PAGO_UNICO' && (
                       <Boton icono="wallet" disabled={!modoPrueba} onClick={() => setModal('pago')}>
                         Pagar con Mercado Pago
                       </Boton>
                     )}
-                    {medio === 'DEBITO_AUTOMATICO' &&
+                    {medioActivo === 'DEBITO_AUTOMATICO' &&
                       (adhesion ? (
                         <Boton icono="refresh" cargando={accion.enviando} onClick={() => iniciar('DEBITO_AUTOMATICO')}>
                           Debitar esta cuota
@@ -251,13 +335,15 @@ export function CuotasPagos() {
                           Adherirme al débito automático
                         </Boton>
                       ))}
-                    {medio === 'EFECTIVO' && (
+                    {medioActivo === 'EFECTIVO' && (
                       <Boton icono="wallet" cargando={accion.enviando} onClick={() => iniciar('EFECTIVO')}>
                         Pagaré en administración
                       </Boton>
                     )}
-                    {medio === 'EFECTIVO' ? <Nota icono="building">El efectivo se abona en la administración de tu sede.</Nota> : notaSeguridad}
+                    {medioActivo === 'EFECTIVO' ? <Nota icono="building">El efectivo se abona en la administración de tu sede.</Nota> : notaSeguridad}
                   </>
+                ) : pendiente ? (
+                  <Cargando />
                 ) : (
                   <>
                     <div className="amount">
@@ -469,6 +555,11 @@ export function CuotasPagos() {
           {debito && <Composicion cuotaBase={debito.cuotaBase} adicionalPremium={debito.adicionalPremium} descuento={debito.descuento} plan={planTexto} />}
           <FilaDato etiqueta="Total con débito automático">{dinero(debito?.importeFinal)}</FilaDato>
         </section>
+        {delPeriodo?.estado === 'PAGADA' ? (
+          <p className="page-note">Tu cuota de {mesAnio(delPeriodo.periodo)} ya está pagada: Mercado Pago hará el primer débito el mes que viene.</p>
+        ) : (
+          delPeriodo && <p className="page-note">Mercado Pago debita en el acto la cuota de {mesAnio(delPeriodo.periodo)}. Las cuotas anteriores se abonan por separado.</p>
+        )}
         <label className="check-field">
           <input type="checkbox" checked={autorizo} onChange={(e) => setAutorizo(e.target.checked)} />
           Autorizo la adhesión al débito automático. Puedo cancelarla desde mi cuenta.

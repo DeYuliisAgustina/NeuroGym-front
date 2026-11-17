@@ -63,6 +63,10 @@ export interface Cuota {
   adicionalPremium: number;
   descuento: number;
   importeFinal: number;
+  /** Cuota del período de un socio adherido: Mercado Pago la debitará (no admite otros medios). */
+  debitoProgramado?: boolean;
+  /** Medios con los que puede abonarse esta cuota (el débito solo cubre el período en curso). */
+  mediosHabilitados?: MedioPago[];
 }
 
 export interface Comprobante {
