@@ -22,16 +22,28 @@ export class ErrorApi extends Error {
   }
 }
 
+/**
+ * Sesión por pestaña: cada pestaña guarda su token en sessionStorage, así el
+ * personal y un socio pueden usar NeuroGym a la vez en pestañas distintas (y al
+ * duplicar una pestaña se copia su sesión). El último ingreso queda además en
+ * localStorage como sesión inicial de las pestañas nuevas.
+ */
 export const tokenAlmacenado = {
   leer: () => {
     try {
-      return localStorage.getItem(CLAVE_TOKEN);
+      const propio = sessionStorage.getItem(CLAVE_TOKEN);
+      if (propio) return propio;
+      const compartido = localStorage.getItem(CLAVE_TOKEN);
+      // La pestaña nueva toma el último ingreso y lo fija como propio.
+      if (compartido) sessionStorage.setItem(CLAVE_TOKEN, compartido);
+      return compartido;
     } catch {
       return null;
     }
   },
   guardar: (token: string) => {
     try {
+      sessionStorage.setItem(CLAVE_TOKEN, token);
       localStorage.setItem(CLAVE_TOKEN, token);
     } catch {
       /* almacenamiento no disponible */
@@ -39,7 +51,10 @@ export const tokenAlmacenado = {
   },
   borrar: () => {
     try {
-      localStorage.removeItem(CLAVE_TOKEN);
+      const propio = sessionStorage.getItem(CLAVE_TOKEN);
+      sessionStorage.removeItem(CLAVE_TOKEN);
+      // Solo se borra la sesión compartida si es la de esta pestaña (no cierra la de otra).
+      if (!propio || localStorage.getItem(CLAVE_TOKEN) === propio) localStorage.removeItem(CLAVE_TOKEN);
     } catch {
       /* almacenamiento no disponible */
     }
