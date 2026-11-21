@@ -5,6 +5,7 @@ import { Boton, CabeceraTarjeta, Cargando, Encabezado, ErrorFormulario, FilaDato
 import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
+import { generarRutinaEnSegundoPlano, useGeneracionRutina, type PreferenciasRutina } from '../../services/generacionRutina';
 import type { EjercicioRutina } from '../../types';
 import { fechaLarga, conSede } from '../../utils/formato';
 import { validarEjercicio } from '../../validations/formularios';
@@ -42,6 +43,16 @@ export function MiRutina() {
   const [generar, setGenerar] = useState(false);
   const [guardar, setGuardar] = useState(false);
   const accion = useAccion();
+  const generacion = useGeneracionRutina();
+
+  // Cuando termina una generación (aunque haya empezado en otra visita), se recarga la rutina.
+  useEffect(() => {
+    if (generacion.version === 0) return;
+    setDia(null);
+    setMarcados([]);
+    void rutina.recargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generacion.version]);
 
   const ejercicios = rutina.datos?.rutina?.ejercicios ?? [];
   const dias = useMemo(() => [...new Set(ejercicios.map((e) => e.dia))].sort((a, b) => a - b), [ejercicios]);
@@ -95,9 +106,16 @@ export function MiRutina() {
         titulo="Mi rutina"
         subtitulo="Revisá los ejercicios y ajustá series, repeticiones y pesos."
         accion={
-          <Boton icono="sparkles" onClick={() => setGenerar(true)}>
-            Generar rutina
-          </Boton>
+          generacion.enCurso ? (
+            <button className="btn primary" type="button" disabled aria-busy="true">
+              <span className="spinner" aria-hidden="true" />
+              Generando…
+            </button>
+          ) : (
+            <Boton icono="sparkles" onClick={() => setGenerar(true)}>
+              Generar rutina
+            </Boton>
+          )
         }
       />
       <Pestanas
@@ -109,6 +127,8 @@ export function MiRutina() {
         ]}
       />
       <ErrorFormulario>{accion.error}</ErrorFormulario>
+      {!generacion.enCurso && generacion.error && <ErrorFormulario>{`No pudo generarse la rutina: ${generacion.error}`}</ErrorFormulario>}
+      {generacion.enCurso && vista === 'actual' && <ProgresoGeneracion inicio={generacion.inicio} conEsqueleto={!ejercicios.length} />}
 
       {vista === 'historial' ? (
         <section className="card">
@@ -131,6 +151,7 @@ export function MiRutina() {
           {historial.datos?.length === 0 && <Vacio titulo="Todavía no hay entrenamientos" descripcion="Completá tu primera rutina para verla en el historial." icono="dumbbell" />}
         </section>
       ) : !ejercicios.length ? (
+        !generacion.enCurso && (
         <section className="card">
           <Vacio
             titulo="Todavía no tenés una rutina"
@@ -143,6 +164,7 @@ export function MiRutina() {
             }
           />
         </section>
+        )
       ) : (
         <div className="two-col">
           <div>
@@ -294,12 +316,10 @@ export function MiRutina() {
         abierto={generar}
         actual={pref}
         alCerrar={() => setGenerar(false)}
-        alGenerar={() => {
+        alIniciar={(preferencias) => {
           setGenerar(false);
-          setDia(null);
-          setMarcados([]);
-          toast('Tu nueva rutina está lista. Podés editar cada ejercicio.');
-          void rutina.recargar();
+          setVista('actual');
+          void generarRutinaEnSegundoPlano(preferencias, toast);
         }}
       />
 
@@ -448,20 +468,24 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
 
 const PASOS_GENERACION = ['Analizando tus preferencias', 'Eligiendo ejercicios disponibles en tu sede', 'Armando series, repeticiones y descansos', 'Revisando que la rutina sea segura'];
 
-/** Indicador mientras la IA arma la rutina (puede tardar unos 20 a 30 segundos). */
-function ProgresoGeneracion() {
-  const [segundos, setSegundos] = useState(0);
+/**
+ * Tarjeta de progreso mientras la IA arma la rutina en segundo plano (unos 20 a
+ * 30 segundos). No bloquea la pantalla: el socio puede seguir usando NeuroGym.
+ */
+function ProgresoGeneracion({ inicio, conEsqueleto }: { inicio: number; conEsqueleto: boolean }) {
+  const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => {
-    const id = window.setInterval(() => setSegundos((s) => s + 1), 1000);
+    const id = window.setInterval(() => setAhora(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
+  const segundos = Math.max(0, Math.floor((ahora - inicio) / 1000));
   const paso = PASOS_GENERACION[Math.min(Math.floor(segundos / 6), PASOS_GENERACION.length - 1)];
   return (
-    <div className="generando" role="status" aria-live="polite">
+    <section className="card generando" role="status" aria-live="polite">
       <div className="generando-cabecera">
         <span className="spinner spinner-grande" aria-hidden="true" />
         <div>
-          <strong>La IA está preparando tu rutina…</strong>
+          <strong>La IA está preparando tu nueva rutina…</strong>
           <p>
             {paso} · {segundos} s
           </p>
@@ -470,23 +494,37 @@ function ProgresoGeneracion() {
       <div className="generando-barra" aria-hidden="true">
         <span />
       </div>
-      <p className="generando-nota">Suele tardar entre 20 y 30 segundos. No cierres esta ventana.</p>
-    </div>
+      <p className="generando-nota">Podés seguir usando NeuroGym: te avisamos cuando esté lista. Suele tardar entre 20 y 30 segundos.</p>
+      {conEsqueleto && (
+        <div className="esqueleto" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="esqueleto-fila">
+              <span className="esqueleto-icono" />
+              <div>
+                <span className="esqueleto-linea" />
+                <span className="esqueleto-linea corta" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
-/** "Generar rutina" (Figura 39, CU-003): la nueva rutina reemplaza a la vigente. */
-function GenerarRutina({ abierto, actual, alCerrar, alGenerar }: { abierto: boolean; actual: RespuestaRutina['preferencias']; alCerrar: () => void; alGenerar: () => void }) {
+/**
+ * "Generar rutina" (Figura 39, CU-003): la nueva rutina reemplaza a la vigente.
+ * Al confirmar, el modal se cierra y la generación sigue en segundo plano.
+ */
+function GenerarRutina({ abierto, actual, alCerrar, alIniciar }: { abierto: boolean; actual: RespuestaRutina['preferencias']; alCerrar: () => void; alIniciar: (f: PreferenciasRutina) => void }) {
   const [f, setF] = useState({ objetivo: actual?.objetivo ?? 'Fuerza y bienestar', nivel: actual?.nivel ?? 'Principiante', diasPorSemana: actual?.diasPorSemana ?? 3 });
-  const accion = useAccion();
-  const generar = async (e: FormEvent) => {
+  const generar = (e: FormEvent) => {
     e.preventDefault();
-    if (await accion.ejecutar(() => api.post('/socio/rutina', f))) alGenerar();
+    alIniciar(f);
   };
   return (
     <Modal titulo="Generar rutina" subtitulo="Elegí tus preferencias para preparar una nueva rutina." abierto={abierto} onCerrar={alCerrar}>
       <form onSubmit={generar}>
-        <ErrorFormulario>{accion.error}</ErrorFormulario>
         <div className="form-grid">
           <label className="wide">
             Objetivo
@@ -515,18 +553,17 @@ function GenerarRutina({ abierto, actual, alCerrar, alGenerar }: { abierto: bool
             </select>
           </label>
         </div>
-        {accion.enviando ? (
-          <ProgresoGeneracion />
-        ) : (
-          <p className="page-note">La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. No se solicitan datos biométricos.</p>
-        )}
+        <p className="page-note">
+          La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. La IA tarda unos segundos: podés seguir usando NeuroGym mientras tanto. No se
+          solicitan datos biométricos.
+        </p>
         <div className="form-actions">
           <Boton estilo="outline" onClick={alCerrar}>
             Cancelar
           </Boton>
-          <button className="btn primary" type="submit" disabled={accion.enviando} aria-busy={accion.enviando}>
-            {accion.enviando ? <span className="spinner" aria-hidden="true" /> : <Icono n="sparkles" />}
-            {accion.enviando ? 'Generando…' : 'Generar rutina'}
+          <button className="btn primary" type="submit">
+            <Icono n="sparkles" />
+            Generar rutina
           </button>
         </div>
       </form>
