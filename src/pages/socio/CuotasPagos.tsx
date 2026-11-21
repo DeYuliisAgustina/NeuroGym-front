@@ -54,7 +54,7 @@ const conDebito = (n: number) => Math.round(n * 0.9 * 100) / 100;
 export function CuotasPagos() {
   const [parametros, setParametros] = useSearchParams();
   const toast = useToast();
-  const detalle = useApi(() => api.get<Detalle>('/socio/cuota'));
+  const detalle = useApi(() => api.get<Detalle>('/cuotas/actual'));
   const perfil = useApi(() => api.get<PerfilPlan>('/socio/perfil'));
   const integracion = useApi(() => api.get<{ mercadoPago: string }>('/pagos/integracion'));
   const [filtros, setFiltros] = useState({ busqueda: '', medio: '', fecha: '' });
@@ -63,7 +63,7 @@ export function CuotasPagos() {
     ...(filtros.fecha ? { desde: filtros.fecha, hasta: filtros.fecha } : {}),
     ...(/^\d{4}-\d{2}$/.test(filtros.busqueda.trim()) ? { periodo: filtros.busqueda.trim() } : filtros.busqueda.trim() ? { referencia: filtros.busqueda.trim() } : {}),
   };
-  const historial = useApi(() => api.get<PagoHistorial[]>('/socio/pagos', consulta), [filtros.busqueda, filtros.medio, filtros.fecha]);
+  const historial = useApi(() => api.get<PagoHistorial[]>('/pagos', consulta), [filtros.busqueda, filtros.medio, filtros.fecha]);
   const [medio, setMedio] = useState<MedioPago>('PAGO_UNICO');
   // Cuota que se abona: por defecto la del período; el socio puede elegir una vencida anterior.
   const [cuotaElegidaId, setCuotaElegidaId] = useState<number | null>(null);
@@ -114,7 +114,7 @@ export function CuotasPagos() {
   useEffect(() => {
     if (parametros.get('resultado') || parametros.get('pago') || parametros.get('preapproval_id')) return;
     void api
-      .post<{ revisados: number; aprobados: number; rechazados: number }>('/socio/pagos/verificacion')
+      .post<{ revisados: number; aprobados: number; rechazados: number }>('/pagos/verificacion')
       .then((r) => {
         if (r.aprobados > 0) {
           setRetorno({ titulo: 'Pago registrado.', texto: 'Mercado Pago confirmó tu pago. El comprobante ya está en tu historial.' });
@@ -165,7 +165,7 @@ export function CuotasPagos() {
   const iniciar = async (m: MedioPago) => {
     const destino = m === 'DEBITO_AUTOMATICO' ? delPeriodo : cuota;
     if (!destino) return;
-    const r = await accion.ejecutar(() => api.post<ResultadoPago>(`/cuotas/${destino.id}/pagos`, { medio: m }));
+    const r = await accion.ejecutar(() => api.post<ResultadoPago>('/operaciones', { cuotaId: destino.id, medio: m }));
     if (!r) return;
     if (r.tipo === 'REDIRECCION') window.location.href = r.url; // CU-001-006: se completa en Mercado Pago
     else if (r.tipo === 'DEBITO_PROGRAMADO') {
@@ -175,12 +175,12 @@ export function CuotasPagos() {
   };
 
   const verComprobante = async (pagoId: number) => {
-    const c = await accion.ejecutar(() => api.get<Comprobante>(`/socio/pagos/${pagoId}/comprobante`));
+    const c = await accion.ejecutar(() => api.get<Comprobante>(`/pagos/${pagoId}/comprobante`));
     if (c) setComprobante(c);
   };
 
   const darDeBaja = async () => {
-    if (await accion.ejecutar(() => api.delete('/socio/debito'))) {
+    if (adhesion && (await accion.ejecutar(() => api.delete(`/adhesiones/${adhesion.id}`)))) {
       setModal(null);
       toast('Débito automático dado de baja. Podés pagar con Mercado Pago o en efectivo.');
       void detalle.recargar();

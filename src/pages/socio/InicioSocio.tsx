@@ -38,7 +38,7 @@ export const iconoEjercicio = (grupo: string) => (/pierna|glúteo|gluteo|cuádri
 export function InicioSocio() {
   const perfil = useApi(() => api.get<Perfil>('/socio/perfil'));
   const reservas = useApi(() => api.get<{ proximas: { id: number; turno: Turno }[] }>('/socio/reservas'));
-  const cuota = useApi(() => api.get<{ cuota: Cuota | null }>('/socio/cuota'));
+  const cuota = useApi(() => api.get<{ cuota: Cuota | null }>('/cuotas/actual'));
   const asistencias = useApi(() => api.get<Asistencia[]>('/socio/asistencias'));
   const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/socio/rutina'));
   const beneficios = useApi(() => api.get<Beneficios>('/socio/beneficios'));

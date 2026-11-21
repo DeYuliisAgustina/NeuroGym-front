@@ -33,14 +33,14 @@ vi.mock('../src/services/api', () => ({
   api: {
     get: vi.fn((ruta: string) => Promise.resolve(respuestas[ruta] ?? [])),
     // Al abrir la pantalla se verifican los pagos pendientes con Mercado Pago (sin novedades en estas pruebas).
-    post: vi.fn((ruta: string) => Promise.resolve(ruta === '/socio/pagos/verificacion' ? { revisados: 0, aprobados: 0, rechazados: 0 } : null)),
+    post: vi.fn((ruta: string) => Promise.resolve(ruta === '/pagos/verificacion' ? { revisados: 0, aprobados: 0, rechazados: 0 } : null)),
     delete: vi.fn(() => Promise.resolve(null)),
     descargar: vi.fn(() => Promise.resolve()),
   },
 }));
 
 function preparar(detalle: object, ruta = '/socio/pagos') {
-  respuestas['/socio/cuota'] = detalle;
+  respuestas['/cuotas/actual'] = detalle;
   respuestas['/socio/perfil'] = { esPremium: false, plan: { tipo: 'BASICO' }, preciosPlanes: { cuotaBase: 32000, adicionalPremium: 12000 } };
   respuestas['/pagos/integracion'] = { mercadoPago: 'PRUEBA' };
   respuestas['/cuotas/2/medios'] = importes(30000);
@@ -118,7 +118,7 @@ describe('Descargar comprobante', () => {
       <ModalComprobante
         comprobante={{
           pagoId: 77,
-          rutaPdf: '/socio/pagos/77/comprobante.pdf',
+          rutaPdf: '/pagos/77/comprobante.pdf',
           numero: 'NG-00000077',
           fechaEmision: '2026-11-17T19:02:11.000Z',
           fechaEnvio: null,
@@ -139,6 +139,6 @@ describe('Descargar comprobante', () => {
       </MemoryRouter>,
     );
     await userEvent.click(screen.getByRole('button', { name: /Descargar comprobante/ }));
-    expect(api.descargar).toHaveBeenCalledWith('/socio/pagos/77/comprobante.pdf', 'comprobante-NG-00000077.pdf');
+    expect(api.descargar).toHaveBeenCalledWith('/pagos/77/comprobante.pdf', 'comprobante-NG-00000077.pdf');
   });
 });

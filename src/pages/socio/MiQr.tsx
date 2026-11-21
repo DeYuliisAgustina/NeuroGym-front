@@ -33,7 +33,7 @@ export function MiQr() {
   const [error, setError] = useState<string | null>(null);
   const perfil = useApi(() => api.get<Perfil>('/socio/perfil'));
   const reservas = useApi(() => api.get<{ proximas: { id: number; turno: Turno }[] }>('/socio/reservas'));
-  const cuota = useApi(() => api.get<{ cuota: { estado: string } | null }>('/socio/cuota'));
+  const cuota = useApi(() => api.get<{ cuota: { estado: string } | null }>('/cuotas/actual'));
   const asistencias = useApi(() => api.get<Asistencia[]>('/socio/asistencias'));
 
   const renovar = useCallback(async () => {

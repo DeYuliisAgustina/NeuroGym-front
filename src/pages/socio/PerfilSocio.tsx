@@ -29,7 +29,7 @@ export function PerfilSocio() {
   const navegar = useNavigate();
   const toast = useToast();
   const perfil = useApi(() => api.get<Perfil>('/socio/perfil'));
-  const cuota = useApi(() => api.get<{ adhesion: unknown }>('/socio/cuota'));
+  const cuota = useApi(() => api.get<{ adhesion: unknown }>('/cuotas/actual'));
   const [telefono, setTelefono] = useState<string | null>(null);
   const [premium, setPremium] = useState(false);
   const { disponible, instalada, instalar } = useInstalacion();
