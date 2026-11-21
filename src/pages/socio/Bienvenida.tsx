@@ -40,7 +40,11 @@ export function Bienvenida() {
   }, []);
 
   const generar = async () => {
-    const r = await accion.ejecutar(() => api.post('/socio/rutina', { objetivo, nivel, diasPorSemana: Number(dias) }));
+    const preferencias = { objetivo, nivel, diasPorSemana: Number(dias) };
+    const r = await accion.ejecutar(async () => {
+      await api.put('/socios/preferencias', preferencias);
+      return api.post('/rutinas', preferencias);
+    });
     if (r) {
       mostrar('Tu rutina está lista. Podés editar cada ejercicio.');
       navegar('/socio/rutina');

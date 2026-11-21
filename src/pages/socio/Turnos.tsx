@@ -54,7 +54,7 @@ export function Turnos() {
   const sedes = useApi(() => api.get<Sede[]>('/socio/sedes'));
   const disponibles = useApi(() => api.get<Turno[]>('/socio/turnos/disponibles', { ...(sedeId ? { sedeId } : {}), fecha }), [sedeId, fecha]);
   const mias = useApi(() => api.get<{ proximas: Reserva[]; historial: Reserva[] }>('/socio/reservas'));
-  const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/socio/rutina'));
+  const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/rutinas/actual'));
   const [confirmar, setConfirmar] = useState<Turno | null>(null);
   const [cancelar, setCancelar] = useState<Reserva | null>(null);
   const [cambiando, setCambiando] = useState<Reserva | null>(null);

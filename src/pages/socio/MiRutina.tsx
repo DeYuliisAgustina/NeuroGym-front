@@ -63,9 +63,9 @@ export function MiRutina() {
   const navegar = useNavigate();
   const toast = useToast();
   const [vista, setVista] = useState<'actual' | 'historial'>('actual');
-  const rutina = useApi(() => api.get<RespuestaRutina>('/socio/rutina'));
+  const rutina = useApi(() => api.get<RespuestaRutina>('/rutinas/actual'));
   const perfil = useApi(() => api.get<{ sede: { nombre: string } }>('/socio/perfil'));
-  const historial = useApi(() => api.get<Entrenamiento[]>('/socio/entrenamientos'));
+  const historial = useApi(() => api.get<Entrenamiento[]>('/entrenamientos'));
   const [dia, setDia] = useState<number | null>(null);
   const [marcados, setMarcados] = useState<number[]>([]);
   const [editando, setEditando] = useState<EjercicioRutina | null>(null);
@@ -100,7 +100,7 @@ export function MiRutina() {
   };
 
   const guardarEntrenamiento = async () => {
-    const ok = await accion.ejecutar(() => api.post('/socio/entrenamientos', { dia: diaActual, realizados: marcados }));
+    const ok = await accion.ejecutar(() => api.post('/entrenamientos', { dia: diaActual, realizados: marcados }));
     if (ok) {
       setMarcados([]);
       setGuardar(false);
@@ -111,14 +111,14 @@ export function MiRutina() {
 
   const verVariante = async (item: EjercicioRutina) => {
     setVariante({ item, datos: null });
-    const r = await accion.ejecutar(() => api.get<Variante>(`/socio/rutina/ejercicios/${item.id}/variante`));
+    const r = await accion.ejecutar(() => api.get<Variante>(`/ejercicios/${item.id}/variante`));
     if (r) setVariante({ item, datos: r });
     else setVariante(null);
   };
 
   const aplicarVariante = async () => {
     if (!variante?.datos?.variante) return;
-    const r = await accion.ejecutar(() => api.put(`/socio/rutina/ejercicios/${variante.item.id}/variante`, { ejercicioId: variante.datos!.variante!.id }));
+    const r = await accion.ejecutar(() => api.put(`/ejercicios/${variante.item.id}`, { variante: variante.datos!.variante!.id }));
     if (r) {
       setVariante(null);
       toast('Variante aplicada. Tu turno se mantiene.');
@@ -447,7 +447,7 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
     setError(problema);
     if (problema) return;
     const ok = await accion.ejecutar(() =>
-      api.put(`/socio/rutina/ejercicios/${item.id}`, {
+      api.put(`/ejercicios/${item.id}`, {
         nombreEjercicio: f.nombre,
         series: f.series,
         repeticiones: f.repeticiones,

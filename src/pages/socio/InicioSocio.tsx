@@ -40,7 +40,7 @@ export function InicioSocio() {
   const reservas = useApi(() => api.get<{ proximas: { id: number; turno: Turno }[] }>('/socio/reservas'));
   const cuota = useApi(() => api.get<{ cuota: Cuota | null }>('/cuotas/actual'));
   const asistencias = useApi(() => api.get<Asistencia[]>('/socio/asistencias'));
-  const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/socio/rutina'));
+  const rutina = useApi(() => api.get<{ rutina: { ejercicios: EjercicioRutina[] } | null }>('/rutinas/actual'));
   const beneficios = useApi(() => api.get<Beneficios>('/socio/beneficios'));
 
   if (perfil.cargando) return <Cargando />;

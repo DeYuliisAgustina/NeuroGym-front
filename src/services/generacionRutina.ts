@@ -80,7 +80,8 @@ export async function generarRutinaEnSegundoPlano(preferencias: PreferenciasRuti
   pedirPermisoNotificaciones();
   actualizar({ enCurso: true, inicio: Date.now(), error: null });
   try {
-    await api.post('/socio/rutina', preferencias);
+    await api.put('/socios/preferencias', preferencias);
+    await api.post('/rutinas', preferencias);
     actualizar({ enCurso: false, version: estado.version + 1 });
     const enMiRutina = window.location.pathname.startsWith(RUTA_RUTINA);
     avisar(enMiRutina ? '¡Tu nueva rutina está lista! Podés editar cada ejercicio.' : '¡Tu nueva rutina está lista! Entrá a «Mi rutina» para verla.');

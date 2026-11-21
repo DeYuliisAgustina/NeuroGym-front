@@ -34,7 +34,7 @@ export const ticket = (id: number) => `INC-${String(id).padStart(4, '0')}`;
 export function Equipamiento() {
   const toast = useToast();
   const [vista, setVista] = useState<'equipos' | 'reportes'>('equipos');
-  const equipos = useApi(() => api.get<Equipo[]>('/socio/equipamiento'));
+  const equipos = useApi(() => api.get<Equipo[]>('/equipos/disponibilidad'));
   const reportes = useApi(() => api.get<Incidencia[]>('/socio/incidencias'));
   const perfil = useApi(() => api.get<{ sede: { nombre: string } }>('/socio/perfil'));
   const [filtros, setFiltros] = useState({ busqueda: '', estado: '', categoria: '' });
