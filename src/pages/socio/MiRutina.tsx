@@ -28,6 +28,37 @@ interface Entrenamiento {
   ejerciciosTotales: number;
 }
 
+/**
+ * Qué IA genera las rutinas, según lo que informa el backend (por ejemplo
+ * «Gemini (gemini-3.5-flash)»). Si no hay IA configurada, es la simulación local.
+ */
+function identificarIA(generador: string | undefined) {
+  const g = generador ?? '';
+  const modelo = g.match(/\((.+)\)/)?.[1] ?? '';
+  if (g.startsWith('Gemini')) return { nombre: 'Gemini', proveedor: 'Google', modelo, real: true };
+  if (g.startsWith('Claude')) return { nombre: 'Claude', proveedor: 'Anthropic', modelo, real: true };
+  return { nombre: 'Simulación local', proveedor: '', modelo: '', real: false };
+}
+
+/** Distintivo de la IA que genera la rutina. */
+function DistintivoIA({ generador }: { generador: string | undefined }) {
+  const ia = identificarIA(generador);
+  return (
+    <div className={`ia-chip ${ia.real ? '' : 'simulada'}`.trim()} title={ia.modelo ? `Modelo: ${ia.modelo}` : undefined}>
+      <Icono n="sparkles" />
+      {ia.real ? (
+        <span>
+          Con tecnología de <strong>{ia.nombre}</strong> · {ia.proveedor}
+        </span>
+      ) : (
+        <span>
+          <strong>Modo simulación</strong> · sin IA configurada
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Mi rutina (CU-003, Figuras 39 a 42): consulta, edición, variantes y registro del entrenamiento. */
 export function MiRutina() {
   const navegar = useNavigate();
@@ -128,7 +159,7 @@ export function MiRutina() {
       />
       <ErrorFormulario>{accion.error}</ErrorFormulario>
       {!generacion.enCurso && generacion.error && <ErrorFormulario>{`No pudo generarse la rutina: ${generacion.error}`}</ErrorFormulario>}
-      {generacion.enCurso && vista === 'actual' && <ProgresoGeneracion inicio={generacion.inicio} conEsqueleto={!ejercicios.length} />}
+      {generacion.enCurso && vista === 'actual' && <ProgresoGeneracion inicio={generacion.inicio} conEsqueleto={!ejercicios.length} generador={rutina.datos?.generador} />}
 
       {vista === 'historial' ? (
         <section className="card">
@@ -171,7 +202,7 @@ export function MiRutina() {
             <div className="routine-banner">
               <div className="spread">
                 <div className="eyebrow">TU PLAN ACTUAL</div>
-                <Insignia color="lilac">Personalizada · IA</Insignia>
+                <Insignia color="lilac">{identificarIA(rutina.datos!.generador).real ? `Generada con ${identificarIA(rutina.datos!.generador).nombre}` : 'Generada por simulación'}</Insignia>
               </div>
               <h2>{pref?.objetivo}</h2>
               <p style={{ fontSize: 12 }}>
@@ -315,6 +346,7 @@ export function MiRutina() {
       <GenerarRutina
         abierto={generar}
         actual={pref}
+        generador={rutina.datos?.generador}
         alCerrar={() => setGenerar(false)}
         alIniciar={(preferencias) => {
           setGenerar(false);
@@ -472,7 +504,8 @@ const PASOS_GENERACION = ['Analizando tus preferencias', 'Eligiendo ejercicios d
  * Tarjeta de progreso mientras la IA arma la rutina en segundo plano (unos 20 a
  * 30 segundos). No bloquea la pantalla: el socio puede seguir usando NeuroGym.
  */
-function ProgresoGeneracion({ inicio, conEsqueleto }: { inicio: number; conEsqueleto: boolean }) {
+function ProgresoGeneracion({ inicio, conEsqueleto, generador }: { inicio: number; conEsqueleto: boolean; generador: string | undefined }) {
+  const ia = identificarIA(generador);
   const [ahora, setAhora] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setAhora(Date.now()), 1000);
@@ -485,7 +518,7 @@ function ProgresoGeneracion({ inicio, conEsqueleto }: { inicio: number; conEsque
       <div className="generando-cabecera">
         <span className="spinner spinner-grande" aria-hidden="true" />
         <div>
-          <strong>La IA está preparando tu nueva rutina…</strong>
+          <strong>{ia.real ? `${ia.nombre} está preparando tu nueva rutina…` : 'Preparando tu nueva rutina…'}</strong>
           <p>
             {paso} · {segundos} s
           </p>
@@ -516,7 +549,19 @@ function ProgresoGeneracion({ inicio, conEsqueleto }: { inicio: number; conEsque
  * "Generar rutina" (Figura 39, CU-003): la nueva rutina reemplaza a la vigente.
  * Al confirmar, el modal se cierra y la generación sigue en segundo plano.
  */
-function GenerarRutina({ abierto, actual, alCerrar, alIniciar }: { abierto: boolean; actual: RespuestaRutina['preferencias']; alCerrar: () => void; alIniciar: (f: PreferenciasRutina) => void }) {
+function GenerarRutina({
+  abierto,
+  actual,
+  generador,
+  alCerrar,
+  alIniciar,
+}: {
+  abierto: boolean;
+  actual: RespuestaRutina['preferencias'];
+  generador: string | undefined;
+  alCerrar: () => void;
+  alIniciar: (f: PreferenciasRutina) => void;
+}) {
   const [f, setF] = useState({ objetivo: actual?.objetivo ?? 'Fuerza y bienestar', nivel: actual?.nivel ?? 'Principiante', diasPorSemana: actual?.diasPorSemana ?? 3 });
   const generar = (e: FormEvent) => {
     e.preventDefault();
@@ -525,6 +570,7 @@ function GenerarRutina({ abierto, actual, alCerrar, alIniciar }: { abierto: bool
   return (
     <Modal titulo="Generar rutina" subtitulo="Elegí tus preferencias para preparar una nueva rutina." abierto={abierto} onCerrar={alCerrar}>
       <form onSubmit={generar}>
+        <DistintivoIA generador={generador} />
         <div className="form-grid">
           <label className="wide">
             Objetivo
