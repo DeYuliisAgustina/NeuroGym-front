@@ -45,7 +45,9 @@ export function useAccion() {
     try {
       const resultado = await accion();
       if (mensajeExito) setExito(mensajeExito);
-      return resultado;
+      // Las respuestas 204 (sin cuerpo) llegan como undefined: se devuelve true para que
+      // el llamador distinga el éxito del error (que sí devuelve undefined).
+      return (resultado ?? true) as T;
     } catch (e) {
       if (e instanceof ErrorApi) {
         setError(e.message);

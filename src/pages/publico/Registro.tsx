@@ -4,15 +4,15 @@ import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccion } from '../../hooks/useApi';
+import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Sesion } from '../../types';
-import { validarRegistroProfesional } from '../../validations/formularios';
+import { validarRegistroProfesional, validarRegistroSocio } from '../../validations/formularios';
 import { ArteAcceso, TarjetasPerfil } from './Ingreso';
 
 /**
- * "Sumate a NeuroGym." Los profesionales se registran solos (RF28); la cuenta
- * del socio la crea su gimnasio (RF16), por eso el perfil Socio explica el alta.
+ * "Sumate a NeuroGym." Los profesionales se registran solos (RF28). El socio
+ * también se registra solo (RF2) y su gimnasio confirma el alta antes del primer ingreso.
  */
 export function Registro() {
   const [parametros] = useSearchParams();
@@ -35,7 +35,7 @@ export function Registro() {
           <h1>Sumate a NeuroGym.</h1>
           <p>Elegí tu perfil y creá tu cuenta.</p>
           <TarjetasPerfil valor={perfil} onCambiar={setPerfil} />
-          {perfil === 'socio' ? <AltaSocio /> : <FormularioProfesional />}
+          {perfil === 'socio' ? <FormularioSocio /> : <FormularioProfesional />}
           <div className="auth-bottom">
             ¿Ya tenés una cuenta?
             <Link to="/ingreso">Ingresar</Link>
@@ -46,28 +46,126 @@ export function Registro() {
   );
 }
 
-function AltaSocio() {
+interface OpcionGimnasio {
+  id: number;
+  razonSocial: string;
+  sedes: { id: number; nombre: string; direccion: string }[];
+}
+
+/** RF2: el socio completa sus datos; la cuenta se activa cuando el gimnasio confirma el alta. */
+function FormularioSocio() {
+  const opciones = useApi(() => api.get<OpcionGimnasio[]>('/auth/registro/opciones'));
+  const [f, setF] = useState({ email: '', password: '', nombre: '', apellido: '', telefono: '', gimnasioId: '', sedeId: '', consentimientoDatos: false });
+  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [enviado, setEnviado] = useState<string | null>(null);
+  const accion = useAccion();
+  const cambiar = (campo: string) => (e: { target: { value: string } }) => setF({ ...f, [campo]: e.target.value });
+  const error = (campo: string) => {
+    const texto = errores[campo] ?? accion.errores[campo];
+    return texto ? <small role="alert">{texto}</small> : null;
+  };
+  const gimnasio = opciones.datos?.find((g) => String(g.id) === f.gimnasioId);
+
+  const enviar = async (e: FormEvent) => {
+    e.preventDefault();
+    const v = validarRegistroSocio(f);
+    setErrores(v);
+    if (Object.keys(v).length) return;
+    const { gimnasioId: _gimnasio, ...datos } = f;
+    const r = await accion.ejecutar(() => api.post<{ mensaje: string }>('/auth/registro', { ...datos, sedeId: Number(f.sedeId) }));
+    if (r) setEnviado(r.mensaje);
+  };
+
+  if (enviado) {
+    return (
+      <div className="notice-list" style={{ marginBottom: 24 }} role="status">
+        <div className="notice">
+          <Icono n="check" />
+          <div>
+            <h4>¡Listo, {f.nombre}!</h4>
+            <p>{enviado}</p>
+          </div>
+        </div>
+        <div className="notice">
+          <Icono n="sparkles" />
+          <div>
+            <h4>En tu primer ingreso</h4>
+            <p>Elegís tu objetivo, tu experiencia y tus días de entrenamiento para generar tu primera rutina.</p>
+          </div>
+        </div>
+        <Link className="btn primary full" to="/ingreso">
+          Ir a ingresar
+          <Icono n="arrow" />
+        </Link>
+      </div>
+    );
+  }
+
   return (
-    <div className="notice-list" style={{ marginBottom: 24 }}>
-      <div className="notice">
-        <Icono n="building" />
-        <div>
-          <h4>Tu gimnasio crea tu cuenta</h4>
-          <p>Al asociarte, la recepción de tu sede registra tus datos con tu consentimiento y te entrega una contraseña temporal para tu primer ingreso.</p>
-        </div>
+    <form id="register-socio-form" onSubmit={enviar} noValidate>
+      <ErrorFormulario>{accion.error ?? opciones.error}</ErrorFormulario>
+      <div className="form-grid">
+        <label>
+          Nombre
+          <input value={f.nombre} onChange={cambiar('nombre')} autoComplete="given-name" />
+          {error('nombre')}
+        </label>
+        <label>
+          Apellido
+          <input value={f.apellido} onChange={cambiar('apellido')} autoComplete="family-name" />
+          {error('apellido')}
+        </label>
       </div>
-      <div className="notice">
-        <Icono n="sparkles" />
-        <div>
-          <h4>En tu primer ingreso</h4>
-          <p>Elegís tu objetivo, tu experiencia y tus días de entrenamiento para generar tu primera rutina.</p>
-        </div>
+      <label>
+        Correo electrónico
+        <input type="email" placeholder="tu@email.com" value={f.email} onChange={cambiar('email')} autoComplete="email" />
+        {error('email')}
+      </label>
+      <label>
+        Contraseña
+        <CampoPassword value={f.password} onChange={cambiar('password')} autoComplete="new-password" />
+        {error('password') ?? <small>Mínimo 8 caracteres, con letras y números.</small>}
+      </label>
+      <label>
+        Teléfono (WhatsApp)
+        <input type="tel" placeholder="341 555-1234" value={f.telefono} onChange={cambiar('telefono')} autoComplete="tel" />
+        {error('telefono')}
+      </label>
+      <div className="form-grid">
+        <label>
+          Gimnasio
+          <select value={f.gimnasioId} onChange={(e) => setF({ ...f, gimnasioId: e.target.value, sedeId: '' })} disabled={opciones.cargando}>
+            <option value="">{opciones.cargando ? 'Cargando…' : 'Elegí tu gimnasio'}</option>
+            {opciones.datos?.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.razonSocial}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Sede
+          <select value={f.sedeId} onChange={cambiar('sedeId')} disabled={!gimnasio}>
+            <option value="">Elegí tu sede</option>
+            {gimnasio?.sedes.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nombre} · {s.direccion}
+              </option>
+            ))}
+          </select>
+          {error('sedeId')}
+        </label>
       </div>
-      <Link className="btn primary full" to="/ingreso">
-        Ya tengo mi contraseña temporal
+      <label className="check-field">
+        <input type="checkbox" checked={f.consentimientoDatos} onChange={(e) => setF({ ...f, consentimientoDatos: e.target.checked })} />
+        Acepto el tratamiento de mis datos para gestionar mi cuenta en el gimnasio. Puedo consultar las finalidades en Privacidad.
+      </label>
+      {error('consentimientoDatos')}
+      <button className="btn primary full" type="submit" disabled={accion.enviando} aria-busy={accion.enviando || undefined}>
+        {accion.enviando ? 'Enviando tus datos…' : 'Registrarse'}
         <Icono n="arrow" />
-      </Link>
-    </div>
+      </button>
+    </form>
   );
 }
 

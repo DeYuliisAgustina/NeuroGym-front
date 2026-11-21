@@ -33,6 +33,27 @@ export function validarRegistroProfesional(d: {
   return e;
 }
 
+/** RF2: autorregistro del socio (pre-registro que confirma el gimnasio). */
+export function validarRegistroSocio(d: {
+  email: string;
+  password: string;
+  nombre: string;
+  apellido: string;
+  telefono: string;
+  sedeId: string;
+  consentimientoDatos: boolean;
+}): Errores {
+  const e: Errores = {};
+  if (!emailValido(d.email)) e.email = 'Ingresá un correo válido';
+  if (!passwordSegura(d.password)) e.password = 'Mínimo 8 caracteres, con letras y números';
+  if (!d.nombre.trim()) e.nombre = 'Campo obligatorio';
+  if (!d.apellido.trim()) e.apellido = 'Campo obligatorio';
+  if (!telefonoValido(d.telefono)) e.telefono = 'Teléfono inválido';
+  if (!d.sedeId) e.sedeId = 'Elegí tu gimnasio y tu sede';
+  if (!d.consentimientoDatos) e.consentimientoDatos = 'Se requiere tu consentimiento';
+  return e;
+}
+
 export function validarSocio(d: { email: string; nombre: string; apellido: string; telefono: string; sedeId: string; consentimientoDatos: boolean }): Errores {
   const e: Errores = {};
   if (!emailValido(d.email)) e.email = 'Ingresá un correo válido';

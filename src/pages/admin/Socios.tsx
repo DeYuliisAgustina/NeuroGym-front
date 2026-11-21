@@ -13,6 +13,8 @@ import { validarSocio } from '../../validations/formularios';
 interface SocioFila {
   id: number;
   telefono: string;
+  /** RF2: se registró solo y espera que el gimnasio confirme el alta. */
+  pendienteAlta: boolean;
   usuario: { id: number; email: string; nombre: string; apellido: string; activo: boolean; fechaAlta: string };
   plan: { tipo: 'BASICO' | 'PREMIUM' };
   sede: { id: number; nombre: string };
@@ -29,7 +31,7 @@ const vacio = { email: '', nombre: '', apellido: '', telefono: '', sedeId: '', p
 const CUOTA: Record<string, [string, '' | 'warning' | 'danger']> = { PAGADA: ['Al día', ''], PENDIENTE: ['Pendiente', 'warning'], IMPAGA: ['Impaga', 'danger'] };
 const EstadoCuota = ({ estado }: { estado: SocioFila['estadoCuota'] }) => (estado ? <Insignia color={CUOTA[estado][1]}>{CUOTA[estado][0]}</Insignia> : <Insignia color="neutral">Sin cuota</Insignia>);
 
-/** Socios del gimnasio (RF16, Figura 63): alta, ficha con edición y desactivación lógica y reversible (RD20). */
+/** Socios del gimnasio (RF16, Figura 63): alta, confirmación de autorregistros (RF2), ficha con edición y desactivación lógica y reversible (RD20). */
 export function Socios() {
   const { puede } = useAuth();
   const toast = useToast();
@@ -37,9 +39,18 @@ export function Socios() {
   const { sedeId, setSedeId } = useSedeVista();
   const [filtros, setFiltros] = useState({ busqueda: '', plan: '', cuota: '', activo: 'true' });
   const socios = useApi(
-    () => api.get<SocioFila[]>('/admin/socios', { ...(filtros.busqueda ? { busqueda: filtros.busqueda } : {}), ...(sedeId ? { sedeId } : {}), ...(filtros.plan ? { plan: filtros.plan } : {}), activo: filtros.activo }),
+    () =>
+      api.get<SocioFila[]>('/admin/socios', {
+        ...(filtros.busqueda ? { busqueda: filtros.busqueda } : {}),
+        ...(sedeId ? { sedeId } : {}),
+        ...(filtros.plan ? { plan: filtros.plan } : {}),
+        // "Pendientes de alta": socios que se registraron solos (RF2) y esperan la confirmación.
+        ...(filtros.activo === 'pendiente' ? { pendiente: 'true' } : { activo: filtros.activo, pendiente: 'false' }),
+      }),
     [filtros.busqueda, sedeId, filtros.plan, filtros.activo],
   );
+  const pendientes = useApi(() => api.get<SocioFila[]>('/admin/socios', { pendiente: 'true' }), [filtros.activo]);
+  const cantidadPendientes = pendientes.datos?.length ?? 0;
   const sedes = useApi(() => api.get<Sede[]>('/admin/sedes').catch(() => [] as Sede[]));
   const gimnasio = useApi(() => api.get<Gimnasio>('/admin/gimnasio'));
   const [alta, setAlta] = useState(false);
@@ -66,6 +77,19 @@ export function Socios() {
           )
         }
       />
+      {cantidadPendientes > 0 && filtros.activo !== 'pendiente' && (
+        <div className="soft-alert" role="status">
+          <div>
+            <h4>{cantidadPendientes === 1 ? '1 socio se registró y espera el alta' : `${cantidadPendientes} socios se registraron y esperan el alta`}</h4>
+            <p>Revisá sus datos y confirmá el alta para que puedan ingresar a NeuroGym.</p>
+            <div className="form-actions">
+              <Boton chico icono="user" onClick={() => setFiltros({ ...filtros, activo: 'pendiente' })}>
+                Ver pendientes de alta
+              </Boton>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="toolbar">
         <h3>
           {lista.length} {lista.length === 1 ? 'socio encontrado' : 'socios encontrados'}
@@ -112,6 +136,7 @@ export function Socios() {
           <select aria-label="Estado del socio" value={filtros.activo} onChange={(e) => setFiltros({ ...filtros, activo: e.target.value })}>
             <option value="true">Activos</option>
             <option value="false">Desactivados</option>
+            <option value="pendiente">Pendientes de alta{cantidadPendientes ? ` (${cantidadPendientes})` : ''}</option>
           </select>
         </label>
         <Boton estilo="outline" chico icono="refresh" className="clear-filters" onClick={limpiar}>
@@ -152,12 +177,10 @@ export function Socios() {
                   </td>
                   <td>{s.asistenciasMes} este mes</td>
                   <td>{s.ultimaVisita ? fechaCorta(s.ultimaVisita) : 'Sin asistencias'}</td>
-                  <td>
-                    <EstadoCuota estado={s.estadoCuota} />
-                  </td>
+                  <td>{s.pendienteAlta ? <Insignia color="warning">Pendiente de alta</Insignia> : <EstadoCuota estado={s.estadoCuota} />}</td>
                   <td>
                     <Boton estilo="outline" chico icono="chevron" onClick={() => setFicha(s)}>
-                      Ver ficha
+                      {s.pendienteAlta ? 'Revisar alta' : 'Ver ficha'}
                     </Boton>
                   </td>
                 </tr>
@@ -183,7 +206,21 @@ export function Socios() {
           }}
         />
       )}
-      {ficha && (
+      {ficha?.pendienteAlta && (
+        <RevisarAlta
+          socio={ficha}
+          gestion={gestion}
+          alCerrar={() => setFicha(null)}
+          alResolver={(mensaje) => {
+            setFicha(null);
+            if (mensaje) toast(mensaje);
+            void socios.recargar();
+            void pendientes.recargar();
+            void gimnasio.recargar();
+          }}
+        />
+      )}
+      {ficha && !ficha.pendienteAlta && (
         <FichaSocio
           socio={ficha}
           gestion={gestion}
@@ -193,6 +230,8 @@ export function Socios() {
             setFicha(null);
             toast(mensaje);
             void socios.recargar();
+            void pendientes.recargar();
+            void gimnasio.recargar();
           }}
         />
       )}
@@ -309,6 +348,89 @@ function AltaSocio({ sedes, sedeInicial, gimnasio, alCerrar, alGuardar }: { sede
           </button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/**
+ * RF2: revisión del autorregistro. Muestra los datos que cargó el socio y dos
+ * acciones: dar de alta (un clic) o rechazar (pide confirmación).
+ */
+function RevisarAlta({ socio: s, gestion, alCerrar, alResolver }: { socio: SocioFila; gestion: boolean; alCerrar: () => void; alResolver: (mensaje: string | null) => void }) {
+  const [rechazando, setRechazando] = useState(false);
+  const accion = useAccion();
+  const nombre = `${s.usuario.nombre} ${s.usuario.apellido}`;
+
+  const resolver = async (aprobar: boolean) => {
+    const ok = await accion.ejecutar(() => api.patch(`/admin/socios/${s.id}/alta`, { aprobar }));
+    if (ok) alResolver(aprobar ? `Listo: ${s.usuario.nombre} ya puede ingresar a NeuroGym.` : 'Registro rechazado.');
+  };
+  // Si otra persona del gimnasio ya lo resolvió, se actualiza la lista en lugar de mostrar un error.
+  const yaResuelto = !!accion.error && /no tiene un registro pendiente/.test(accion.error);
+  useEffect(() => {
+    if (yaResuelto) alResolver('Este registro ya había sido resuelto.');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yaResuelto]);
+
+  return (
+    <Modal
+      titulo={
+        <>
+          {nombre} <Insignia color="warning">Pendiente de alta</Insignia>
+        </>
+      }
+      subtitulo={`Se registró el ${fechaLarga(s.usuario.fechaAlta)}`}
+      encabezado={<Avatar iniciales={inicialesDe(nombre)} color="mint" grande />}
+      abierto
+      onCerrar={alCerrar}
+    >
+      <div className="ficha-resumen">
+        <div>
+          <span>Correo</span>
+          <strong>{s.usuario.email}</strong>
+        </div>
+        <div>
+          <span>Teléfono</span>
+          <strong>{s.telefono}</strong>
+        </div>
+        <div>
+          <span>Sede</span>
+          <strong>{s.sede.nombre}</strong>
+        </div>
+        <div>
+          <span>Plan</span>
+          <strong>Básico</strong>
+        </div>
+      </div>
+      <ErrorFormulario>{accion.error}</ErrorFormulario>
+      <p className="page-note">
+        {rechazando
+          ? '¿Rechazar este registro? La persona no va a poder ingresar a NeuroGym.'
+          : 'Revisá los datos. Al darlo de alta va a poder ingresar, se le genera la cuota del mes y le avisamos por WhatsApp.'}
+      </p>
+      {gestion && (
+        <div className="form-actions split">
+          {rechazando ? (
+            <>
+              <Boton estilo="outline" onClick={() => setRechazando(false)}>
+                Volver
+              </Boton>
+              <Boton estilo="danger" cargando={accion.enviando} onClick={() => resolver(false)}>
+                Sí, rechazar
+              </Boton>
+            </>
+          ) : (
+            <>
+              <Boton estilo="outline" onClick={() => setRechazando(true)}>
+                Rechazar
+              </Boton>
+              <Boton icono="check" cargando={accion.enviando} onClick={() => resolver(true)}>
+                Dar de alta
+              </Boton>
+            </>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }
