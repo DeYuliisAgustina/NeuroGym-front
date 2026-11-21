@@ -141,9 +141,13 @@ export function Bienvenida() {
                 <FilaDato etiqueta="Sede">{sede}</FilaDato>
               </div>
               <ErrorFormulario>{accion.error}</ErrorFormulario>
-              <Boton completo icono="sparkles" cargando={accion.enviando} onClick={generar}>
-                Generar mi primera rutina
-              </Boton>
+              {accion.enviando ? (
+                <BotonGenerando />
+              ) : (
+                <Boton completo icono="sparkles" onClick={generar}>
+                  Generar mi primera rutina
+                </Boton>
+              )}
               <button type="button" className="text-link" style={{ marginTop: 14 }} onClick={() => setPaso(2)}>
                 Volver
               </button>
@@ -156,6 +160,31 @@ export function Bienvenida() {
           </p>
         </div>
       </main>
+    </div>
+  );
+}
+
+const PASOS_CARGA = ['Analizando tus preferencias', 'Eligiendo ejercicios de tu sede', 'Armando series y descansos', 'Revisando que sea segura'];
+
+/**
+ * Carga mientras la IA arma la primera rutina: el botón queda verde y animado
+ * (brillo y barra de avance), con el paso en curso y los segundos transcurridos.
+ */
+function BotonGenerando() {
+  const [segundos, setSegundos] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const paso = PASOS_CARGA[Math.min(Math.floor(segundos / 5), PASOS_CARGA.length - 1)];
+  return (
+    <div className="btn-generando" role="status" aria-live="polite">
+      <span className="spinner" aria-hidden="true" />
+      <span className="btn-generando-texto">{paso}…</span>
+      <span className="btn-generando-tiempo">{segundos} s</span>
+      <span className="btn-generando-barra" aria-hidden="true">
+        <span />
+      </span>
     </div>
   );
 }

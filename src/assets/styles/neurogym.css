@@ -150,6 +150,13 @@ body.device-preview dialog{max-width:420px;width:calc(100vw - 36px)}body.device-
 .esqueleto-linea{height:10px;width:60%}
 .esqueleto-linea.corta{width:35%}
 @keyframes brillo{from{background-position:200% 0}to{background-position:-200% 0}}
+/* Botón de la bienvenida mientras la IA genera la primera rutina */
+.btn-generando{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:42px;margin-top:17px;padding:12px 18px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;line-height:1.4;background:linear-gradient(110deg,#2f4c35 0%,#36543c 35%,#5c8a4f 50%,#36543c 65%,#2f4c35 100%);background-size:220% 100%;animation:brillo 2.4s linear infinite;box-shadow:0 8px 24px #36543c33;cursor:progress}
+.btn-generando .spinner{width:16px;height:16px;color:#d8ecc3}
+.btn-generando-tiempo{font-weight:500;font-size:12px;color:#d8ecc3;font-variant-numeric:tabular-nums}
+.btn-generando-barra{position:absolute;left:0;right:0;bottom:0;height:3px;background:#ffffff26}
+.btn-generando-barra span{position:absolute;top:0;bottom:0;width:35%;border-radius:99px;background:#c9e6a8;animation:avanzar 1.6s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.btn-generando,.btn-generando-barra span{animation-duration:4s!important}}
 /* Distintivo de la IA que genera la rutina */
 .ia-chip{display:inline-flex;align-items:center;gap:8px;margin:-6px 0 18px;padding:7px 13px;border-radius:99px;font-size:12px;color:#4b3db8;background:linear-gradient(90deg,#eef0ff,#f4ecff);border:1px solid #dcd6ff}
 .ia-chip .icon{width:15px;height:15px;color:var(--violet)}
