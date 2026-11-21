@@ -128,3 +128,17 @@ body.device-preview dialog{max-width:420px;width:calc(100vw - 36px)}body.device-
 
 /* ---- */
 .doc-tenant-select{margin:20px 0}.doc-gym-badge{max-width:220px;white-space:normal;text-align:center}.doc-availability{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:12px;border:1px solid var(--ng-border);padding:16px;border-radius:12px;margin:12px 0}.doc-availability legend{font-size:12px;color:#64715f;padding:0 7px}.doc-card-demo{padding:18px;background:#f5f7f0;border:1px solid #e0e7d9;border-radius:14px;margin:16px 0}.doc-card-demo input[readonly]{background:#fff;color:#64715f}@media(max-width:650px){.doc-gym-badge{max-width:120px;font-size:9px}.doc-availability{grid-template-columns:1fr 1fr}.doc-availability label:first-of-type{grid-column:1/-1}}
+
+/* Indicador mientras la IA genera la rutina */
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:girar .8s linear infinite;flex:none}
+.spinner-grande{width:26px;height:26px;border-width:3px;color:var(--ng-green)}
+.generando{margin:4px 0 6px;padding:16px 18px;border:1px solid #d9e6c7;border-radius:14px;background:#f0f5e7}
+.generando-cabecera{display:flex;align-items:center;gap:14px}
+.generando-cabecera strong{display:block;font-size:13px;font-weight:600;color:var(--ink)}
+.generando-cabecera p{font-size:12px;color:var(--muted);margin-top:3px}
+.generando-barra{position:relative;height:6px;margin-top:14px;border-radius:99px;background:#dfe8d2;overflow:hidden}
+.generando-barra span{position:absolute;top:0;bottom:0;width:40%;border-radius:99px;background:var(--ng-green);animation:avanzar 1.6s ease-in-out infinite}
+.generando-nota{font-size:11px;color:var(--muted);margin-top:10px}
+@keyframes girar{to{transform:rotate(360deg)}}
+@keyframes avanzar{from{left:-40%}to{left:100%}}
+@media(prefers-reduced-motion:reduce){.spinner,.generando-barra span{animation-duration:2.4s!important}}

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icono } from '../../components/Icono';
 import { Boton, CabeceraTarjeta, Cargando, Encabezado, ErrorFormulario, FilaDato, Insignia, Modal, Pestanas, Vacio } from '../../components/ui';
@@ -446,6 +446,35 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
   );
 }
 
+const PASOS_GENERACION = ['Analizando tus preferencias', 'Eligiendo ejercicios disponibles en tu sede', 'Armando series, repeticiones y descansos', 'Revisando que la rutina sea segura'];
+
+/** Indicador mientras la IA arma la rutina (puede tardar unos 20 a 30 segundos). */
+function ProgresoGeneracion() {
+  const [segundos, setSegundos] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const paso = PASOS_GENERACION[Math.min(Math.floor(segundos / 6), PASOS_GENERACION.length - 1)];
+  return (
+    <div className="generando" role="status" aria-live="polite">
+      <div className="generando-cabecera">
+        <span className="spinner spinner-grande" aria-hidden="true" />
+        <div>
+          <strong>La IA está preparando tu rutina…</strong>
+          <p>
+            {paso} · {segundos} s
+          </p>
+        </div>
+      </div>
+      <div className="generando-barra" aria-hidden="true">
+        <span />
+      </div>
+      <p className="generando-nota">Suele tardar entre 20 y 30 segundos. No cierres esta ventana.</p>
+    </div>
+  );
+}
+
 /** "Generar rutina" (Figura 39, CU-003): la nueva rutina reemplaza a la vigente. */
 function GenerarRutina({ abierto, actual, alCerrar, alGenerar }: { abierto: boolean; actual: RespuestaRutina['preferencias']; alCerrar: () => void; alGenerar: () => void }) {
   const [f, setF] = useState({ objetivo: actual?.objetivo ?? 'Fuerza y bienestar', nivel: actual?.nivel ?? 'Principiante', diasPorSemana: actual?.diasPorSemana ?? 3 });
@@ -486,13 +515,17 @@ function GenerarRutina({ abierto, actual, alCerrar, alGenerar }: { abierto: bool
             </select>
           </label>
         </div>
-        <p className="page-note">La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. No se solicitan datos biométricos.</p>
+        {accion.enviando ? (
+          <ProgresoGeneracion />
+        ) : (
+          <p className="page-note">La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. No se solicitan datos biométricos.</p>
+        )}
         <div className="form-actions">
           <Boton estilo="outline" onClick={alCerrar}>
             Cancelar
           </Boton>
-          <button className="btn primary" type="submit" disabled={accion.enviando}>
-            <Icono n="sparkles" />
+          <button className="btn primary" type="submit" disabled={accion.enviando} aria-busy={accion.enviando}>
+            {accion.enviando ? <span className="spinner" aria-hidden="true" /> : <Icono n="sparkles" />}
             {accion.enviando ? 'Generando…' : 'Generar rutina'}
           </button>
         </div>
