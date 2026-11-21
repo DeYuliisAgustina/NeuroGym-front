@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useSedeVista } from '../../contexts/SedeContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
+import { ingresarConQr } from '../../services/recepcion';
 import type { Sede } from '../../types';
 import { fechaCorta, hoyIso, mesAnio } from '../../utils/formato';
 
@@ -94,7 +95,7 @@ export function RecepcionQr() {
   const validar = async (texto: string) => {
     if (!sedeId) return accion.setError('Seleccioná la sede de recepción.');
     // CU-004-002: la validación siempre se hace en el servidor (RNF7).
-    const r = await accion.ejecutar(() => api.post<Resultado>('/asistencias/qr', { codigo: texto.trim(), sedeId: Number(sedeId) }));
+    const r = await accion.ejecutar(() => ingresarConQr(texto.trim(), Number(sedeId)) as Promise<Resultado>);
     if (r) {
       setCodigo('');
       mostrar(r);
@@ -104,7 +105,7 @@ export function RecepcionQr() {
   const autorizar = async (e: FormEvent) => {
     e.preventDefault();
     if (motivo.trim().length < 5) return accion.setError('Indicá el motivo de la autorización excepcional.');
-    const r = await accion.ejecutar(() => api.post<Resultado>('/asistencias/autorizaciones', { reservaId: resultado!.reservaId, codigoQrId: resultado!.codigoQrId, motivo }));
+    const r = await accion.ejecutar(() => api.post<Resultado>('/autorizaciones', { reservaId: resultado!.reservaId, codigoQrId: resultado!.codigoQrId, motivo }));
     if (r) {
       setDecision(false);
       mostrar(r);
