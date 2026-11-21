@@ -88,7 +88,7 @@ export async function generarRutinaEnSegundoPlano(preferencias: PreferenciasRuti
   } catch (e) {
     const mensaje = (e as Error).message || 'No pudo generarse la rutina.';
     actualizar({ enCurso: false, error: mensaje });
-    avisar('No pudo generarse la rutina. Se conserva tu rutina anterior.');
-    notificarSistema('No pudo generarse la rutina. Se conserva tu rutina anterior.', true);
+    avisar(mensaje);
+    notificarSistema(mensaje, true);
   }
 }
