@@ -36,7 +36,6 @@ function identificarIA(generador: string | undefined) {
   const g = generador ?? '';
   const modelo = g.match(/\((.+)\)/)?.[1] ?? '';
   if (g.startsWith('Gemini')) return { nombre: 'Gemini', proveedor: 'Google', modelo, real: true };
-  if (g.startsWith('Claude')) return { nombre: 'Claude', proveedor: 'Anthropic', modelo, real: true };
   return { nombre: 'Simulación local', proveedor: '', modelo: '', real: false };
 }
 
