@@ -32,7 +32,8 @@ vi.mock('../src/services/api', () => ({
   },
   api: {
     get: vi.fn((ruta: string) => Promise.resolve(respuestas[ruta] ?? [])),
-    post: vi.fn(() => Promise.resolve(null)),
+    // Al abrir la pantalla se verifican los pagos pendientes con Mercado Pago (sin novedades en estas pruebas).
+    post: vi.fn((ruta: string) => Promise.resolve(ruta === '/socio/pagos/verificacion' ? { revisados: 0, aprobados: 0, rechazados: 0 } : null)),
     delete: vi.fn(() => Promise.resolve(null)),
     descargar: vi.fn(() => Promise.resolve()),
   },
@@ -85,8 +86,9 @@ describe('Cuotas y pagos: cuota a abonar y débito programado', () => {
 
   it('si no se puede iniciar el pago, el motivo se muestra en el aviso destacado', async () => {
     const { api } = await import('../src/services/api');
-    vi.mocked(api.post).mockRejectedValueOnce(new Error('La cuota del período se debitará automáticamente con tu adhesión.'));
     preparar({ cuota: cuota({}), adeudadas: [], adhesion: null, importes: importes(32000) });
+    // Solo falla el inicio del pago (no la verificación que se hace al abrir la pantalla).
+    vi.mocked(api.post).mockRejectedValueOnce(new Error('La cuota del período se debitará automáticamente con tu adhesión.'));
     await userEvent.click(await screen.findByRole('button', { name: /Efectivo/ }));
     await userEvent.click(screen.getByRole('button', { name: /Pagaré en administración/ }));
     const aviso = await screen.findByRole('alert');

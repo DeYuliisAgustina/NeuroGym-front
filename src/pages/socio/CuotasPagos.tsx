@@ -109,6 +109,27 @@ export function CuotasPagos() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Al abrir la pantalla sin volver de Mercado Pago: si quedó un pago pendiente (por ejemplo, el socio
+  // pagó y no tocó «Volver al sitio»), el backend lo confirma con la API oficial y se muestra el resultado.
+  useEffect(() => {
+    if (parametros.get('resultado') || parametros.get('pago') || parametros.get('preapproval_id')) return;
+    void api
+      .post<{ revisados: number; aprobados: number; rechazados: number }>('/socio/pagos/verificacion')
+      .then((r) => {
+        if (r.aprobados > 0) {
+          setRetorno({ titulo: 'Pago registrado.', texto: 'Mercado Pago confirmó tu pago. El comprobante ya está en tu historial.' });
+        } else if (r.rechazados > 0) {
+          setRechazado(true);
+        }
+        if (r.aprobados + r.rechazados > 0) {
+          void detalle.recargar();
+          void historial.recargar();
+        }
+      })
+      .catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (detalle.cargando || perfil.cargando) return <Cargando />;
   if (detalle.error) return <ErrorFormulario>{detalle.error}</ErrorFormulario>;
   const { cuota: delPeriodo, adhesion, importes: importesPeriodo } = detalle.datos!;
