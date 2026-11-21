@@ -56,7 +56,7 @@ export function Intelligence() {
   const filtros = { desde, hasta, ...(sedeId ? { sedeId } : {}) };
   const gimnasio = useApi(() => api.get<{ suscripcion: { tipo: string } | null }>('/admin/gimnasio'));
   const sedes = useApi(() => api.get<Sede[]>('/admin/sedes').catch(() => [] as Sede[]));
-  const analitica = useApi(() => api.get<Analitica>('/admin/intelligence/analitica', filtros), [sedeId, meses]);
+  const analitica = useApi(() => api.get<Analitica>('/analitica', filtros), [sedeId, meses]);
   const [filtroCasos, setFiltroCasos] = useState<'REVISAR' | 'TODOS' | 'ALTO' | 'MEDIO' | 'SEGUIMIENTO'>('REVISAR');
   const [detalles, setDetalles] = useState<Record<number, AnalisisSocio>>({});
   const [caso, setCaso] = useState<Estimacion | null>(null);
@@ -68,7 +68,7 @@ export function Intelligence() {
   useEffect(() => {
     const ids = (a?.estimaciones ?? []).slice(0, 12).map((e) => e.socioId).filter((id) => !detalles[id]);
     if (!ids.length || !puede('RETENCION')) return;
-    void Promise.all(ids.map((id) => api.get<AnalisisSocio>(`/admin/retencion/socios/${id}`).then((d) => [id, d] as const).catch(() => null))).then((r) =>
+    void Promise.all(ids.map((id) => api.get<AnalisisSocio>(`/analitica/socios/${id}`).then((d) => [id, d] as const).catch(() => null))).then((r) =>
       setDetalles((x) => ({ ...x, ...Object.fromEntries(r.filter(Boolean) as [number, AnalisisSocio][]) })),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -94,19 +94,20 @@ export function Intelligence() {
   const sedeNombre = sedes.datos?.find((s) => String(s.id) === sedeId)?.nombre ?? 'Todas las sedes';
 
   const exportar = async () => {
-    if (await accion.ejecutar(() => api.descargar('/admin/intelligence/reporte.xlsx', `NeuroGym_Intelligence_${hoyIso()}.xlsx`, filtros).then(() => true))) toast('Informe Excel exportado con la sede y el período seleccionados.');
+    if (await accion.ejecutar(() => api.descargar('/analitica/reporte', `NeuroGym_Intelligence_${hoyIso()}.xlsx`, filtros).then(() => true))) toast('Informe Excel exportado con la sede y el período seleccionados.');
   };
   const abrirCaso = (e: Estimacion) => {
     accion.limpiar();
     setCaso(e);
-    if (!detalles[e.socioId]) void api.get<AnalisisSocio>(`/admin/retencion/socios/${e.socioId}`).then((d) => setDetalles((x) => ({ ...x, [e.socioId]: d })));
+    if (!detalles[e.socioId]) void api.get<AnalisisSocio>(`/analitica/socios/${e.socioId}`).then((d) => setDetalles((x) => ({ ...x, [e.socioId]: d })));
   };
   const guardarDecision = async (ev: FormEvent) => {
     ev.preventDefault();
     if (!caso || !decision) return;
     if (decision.motivo.trim().length < 8) return accion.setError('Registrá el motivo de la decisión (al menos 8 caracteres).');
     const ok = await accion.ejecutar(() =>
-      api.post(`/admin/intelligence/estimaciones/${caso.estimacionId}/decision`, {
+      api.post('/decisiones', {
+        estimacionId: caso.estimacionId,
         decision: decision.tipo,
         motivo: decision.motivo,
         ...(decision.tipo === 'PREPARAR_PROPUESTA' ? { incentivo: decision.incentivo, mensaje: decision.mensaje, ...(decision.incentivo === INCENTIVOS[0] ? { premiumDias: 7 } : {}) } : {}),

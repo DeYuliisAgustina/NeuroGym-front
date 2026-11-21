@@ -63,9 +63,9 @@ export function Retencion() {
   const [vista, setVista] = useState<'senales' | 'todos'>('senales');
   const [filtros, setFiltros] = useState({ plan: '', estadoCuota: '', nivel: '', busqueda: '' });
   const consulta = Object.fromEntries(Object.entries({ ...filtros, sedeId }).filter(([, v]) => v));
-  const tablero = useApi(() => api.get<Dashboard>('/admin/retencion/dashboard', consulta), [filtros.plan, filtros.estadoCuota, filtros.nivel, filtros.busqueda, sedeId]);
+  const tablero = useApi(() => api.get<Dashboard>('/indicadores', consulta), [filtros.plan, filtros.estadoCuota, filtros.nivel, filtros.busqueda, sedeId]);
   const sedes = useApi(() => api.get<Sede[]>('/admin/sedes').catch(() => [] as Sede[]));
-  const propuestas = useApi(() => api.get<Propuesta[]>('/admin/retencion/propuestas'));
+  const propuestas = useApi(() => api.get<Propuesta[]>('/propuestas'));
   const beneficios = useApi(() => api.get<Beneficio[]>('/admin/beneficios'));
   const [propuesta, setPropuesta] = useState<{ socio: SocioFila; incentivo: string; mensaje: string } | null>(null);
   const [beneficio, setBeneficio] = useState<Partial<Beneficio> | null>(null);
@@ -85,7 +85,7 @@ export function Retencion() {
     if (!p.mensaje.trim()) return accion.setError('El mensaje es obligatorio.');
     const premium = p.incentivo === INCENTIVOS[0];
     const ok = await accion.ejecutar(() =>
-      api.post('/admin/retencion/propuestas', {
+      api.post('/propuestas', {
         socioId: p.socio.socioId,
         senalId: p.socio.senal?.id,
         incentivo: p.incentivo,
@@ -101,14 +101,14 @@ export function Retencion() {
   };
   const confirmarAprobacion = async () => {
     if (!aprobar) return;
-    if (await accion.ejecutar(() => api.patch(`/admin/retencion/propuestas/${aprobar.id}/aprobacion`))) {
+    if (await accion.ejecutar(() => api.post(`/propuestas/${aprobar.id}/aprobacion`))) {
       setAprobar(null);
       toast('Incentivo aprobado y comunicado al socio.');
       void propuestas.recargar();
     }
   };
   const posponer = async (p: Propuesta) => {
-    if (await accion.ejecutar(() => api.patch(`/admin/retencion/propuestas/${p.id}/pendiente`))) {
+    if (await accion.ejecutar(() => api.patch(`/propuestas/${p.id}/pendiente`))) {
       toast('La propuesta quedó pendiente.');
       void propuestas.recargar();
     }

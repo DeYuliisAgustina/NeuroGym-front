@@ -42,7 +42,7 @@ export function PanelGeneral() {
   const gimnasio = useApi(() => api.get<Gimnasio>('/admin/gimnasio'));
   const resumen = useApi(() => (puede('COBROS') ? api.get<Resumen>('/admin/cuotas/resumen') : Promise.resolve(null)));
   const ingresos = useApi(() => (puede('RECEPCION') ? api.get<Asistencia[]>('/admin/asistencias', filtroSede) : Promise.resolve(null)), [sedeId]);
-  const tablero = useApi(() => (puede('RETENCION') ? api.get<Tablero>('/admin/retencion/dashboard', filtroSede) : Promise.resolve(null)), [sedeId]);
+  const tablero = useApi(() => (puede('RETENCION') ? api.get<Tablero>('/indicadores', filtroSede) : Promise.resolve(null)), [sedeId]);
   const equipos = useApi(() => (puede('EQUIPAMIENTO') ? api.get<Equipo[]>('/admin/equipos', filtroSede) : Promise.resolve(null)), [sedeId]);
   const g = gimnasio.datos;
   const pendientes = resumen.datos?.cuotas.filter((c) => c.estado !== 'PAGADA').reduce((t, c) => t + c.cantidad, 0);
