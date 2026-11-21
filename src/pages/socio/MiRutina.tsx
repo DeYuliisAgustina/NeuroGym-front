@@ -5,7 +5,7 @@ import { Boton, CabeceraTarjeta, Cargando, Encabezado, ErrorFormulario, FilaDato
 import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
-import { generarRutinaEnSegundoPlano, useGeneracionRutina, type PreferenciasRutina } from '../../services/generacionRutina';
+import { generarRutinaEnSegundoPlano, useGeneracionRutina, type PreferenciasRutina, type ZonaEvitar } from '../../services/generacionRutina';
 import type { EjercicioRutina } from '../../types';
 import { fechaLarga, conSede } from '../../utils/formato';
 import { validarEjercicio } from '../../validations/formularios';
@@ -498,6 +498,14 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
   );
 }
 
+const ZONAS: [ZonaEvitar, string][] = [
+  ['ESPALDA_BAJA', 'Espalda baja'],
+  ['RODILLAS', 'Rodillas'],
+  ['HOMBROS', 'Hombros'],
+  ['MUNECAS', 'Muñecas'],
+  ['IMPACTO', 'Saltos e impacto'],
+];
+
 const PASOS_GENERACION = ['Analizando tus preferencias', 'Eligiendo ejercicios disponibles en tu sede', 'Armando series, repeticiones y descansos', 'Revisando que la rutina sea segura'];
 
 /**
@@ -563,9 +571,12 @@ function GenerarRutina({
   alIniciar: (f: PreferenciasRutina) => void;
 }) {
   const [f, setF] = useState({ objetivo: actual?.objetivo ?? 'Fuerza y bienestar', nivel: actual?.nivel ?? 'Principiante', diasPorSemana: actual?.diasPorSemana ?? 3 });
+  // Zonas a evitar: lista cerrada, no se guardan (solo se usan en esta generación).
+  const [evitar, setEvitar] = useState<ZonaEvitar[]>([]);
+  const alternarZona = (z: ZonaEvitar) => setEvitar((v) => (v.includes(z) ? v.filter((x) => x !== z) : [...v, z]));
   const generar = (e: FormEvent) => {
     e.preventDefault();
-    alIniciar(f);
+    alIniciar({ ...f, evitar });
   };
   return (
     <Modal titulo="Generar rutina" subtitulo="Elegí tus preferencias para preparar una nueva rutina." abierto={abierto} onCerrar={alCerrar}>
@@ -599,6 +610,23 @@ function GenerarRutina({
             </select>
           </label>
         </div>
+        <fieldset className="zonas-evitar">
+          <legend>
+            Zonas o movimientos a evitar <span className="muted">(opcional)</span>
+          </legend>
+          <div className="zonas-opciones">
+            {ZONAS.map(([valor, texto]) => (
+              <label key={valor} className={`zona-chip ${evitar.includes(valor) ? 'activa' : ''}`.trim()}>
+                <input type="checkbox" checked={evitar.includes(valor)} onChange={() => alternarZona(valor)} />
+                {texto}
+              </label>
+            ))}
+          </div>
+          <p className="zonas-nota">
+            La IA no va a incluir ejercicios que carguen esas zonas. Es una preferencia de entrenamiento: no se guarda y no reemplaza la consulta con un profesional de la
+            salud.
+          </p>
+        </fieldset>
         <p className="page-note">
           La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. La IA tarda unos segundos: podés seguir usando NeuroGym mientras tanto. No se
           solicitan datos biométricos.

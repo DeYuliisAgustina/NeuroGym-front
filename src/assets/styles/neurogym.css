@@ -156,3 +156,13 @@ body.device-preview dialog{max-width:420px;width:calc(100vw - 36px)}body.device-
 .ia-chip strong{font-weight:650}
 .ia-chip.simulada{color:#6b6b6b;background:#f2f2ee;border-color:#e1e1da}
 .ia-chip.simulada .icon{color:#8d8d86}
+/* Zonas o movimientos a evitar (Generar rutina) */
+.zonas-evitar{border:0;padding:0;margin:18px 0 4px}
+.zonas-evitar legend{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:9px;padding:0}
+.zonas-evitar legend .muted{font-weight:400}
+.zonas-opciones{display:flex;flex-wrap:wrap;gap:8px}
+.zona-chip{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border:1px solid var(--border);border-radius:99px;font-size:12px;cursor:pointer;background:#fff;user-select:none}
+.zona-chip input{width:14px;height:14px;margin:0;accent-color:var(--ng-green)}
+.zona-chip.activa{border-color:#b9cf99;background:#eef5e3;color:var(--ng-green);font-weight:600}
+.zona-chip:focus-within{outline:2px solid var(--ng-lime);outline-offset:2px}
+.zonas-nota{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.6}

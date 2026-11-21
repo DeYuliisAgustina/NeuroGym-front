@@ -31,10 +31,14 @@ function suscribir(oyente: () => void) {
 
 export const useGeneracionRutina = () => useSyncExternalStore(suscribir, () => estado);
 
+/** Zonas o movimientos a evitar (lista cerrada; preferencia, no dato de salud). */
+export type ZonaEvitar = 'ESPALDA_BAJA' | 'RODILLAS' | 'HOMBROS' | 'MUNECAS' | 'IMPACTO';
+
 export interface PreferenciasRutina {
   objetivo: string;
   nivel: string;
   diasPorSemana: number;
+  evitar?: ZonaEvitar[];
 }
 
 const RUTA_RUTINA = '/socio/rutina';
