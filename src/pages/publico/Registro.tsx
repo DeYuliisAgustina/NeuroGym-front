@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
@@ -133,7 +134,7 @@ function FormularioProfesional() {
       </label>
       <label>
         Contraseña
-        <input type="password" value={f.password} onChange={cambiar('password')} autoComplete="new-password" />
+        <CampoPassword value={f.password} onChange={cambiar('password')} autoComplete="new-password" />
         {error('password') ?? <small>Mínimo 8 caracteres, con letras y números.</small>}
       </label>
       <div className="form-grid">

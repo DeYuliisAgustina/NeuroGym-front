@@ -47,5 +47,7 @@ export const ICONOS: Record<string, string> = {
  "camera": "<path d=\"M3 7h4l2-3h6l2 3h4v14H3Z\"/><circle cx=\"12\" cy=\"13\" r=\"4\"/>",
  "refresh": "<path d=\"M21 10a9 9 0 0 0-16-5L3 8m0-5v5h5M3 14a9 9 0 0 0 16 5l2-3m0 5v-5h-5\"/>",
  "phone": "<rect x=\"7\" y=\"2\" width=\"10\" height=\"20\" rx=\"2\"/><path d=\"M10 5h4m-2 14h.01\"/>",
+ "eye": "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>",
+ "eyeOff": "<path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"m3 3 18 18\"/>",
  "clipboard": "<rect x=\"5\" y=\"5\" width=\"14\" height=\"16\" rx=\"2\"/><rect x=\"9\" y=\"3\" width=\"6\" height=\"4\" rx=\"1\"/><path d=\"m9 13 2 2 4-4\"/>"
 };

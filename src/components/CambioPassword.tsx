@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useToast } from '../contexts/ToastContext';
+import { CampoPassword } from './CampoPassword';
 import { useAccion } from '../hooks/useApi';
 import { api } from '../services/api';
 import { passwordSegura } from '../validations/formularios';
@@ -28,11 +29,11 @@ export function CambioPassword() {
         <div className="form-grid">
           <label>
             Contraseña actual
-            <input type="password" autoComplete="current-password" required value={actual} onChange={(e) => setActual(e.target.value)} />
+            <CampoPassword autoComplete="current-password" required value={actual} onChange={(e) => setActual(e.target.value)} />
           </label>
           <label>
             Nueva contraseña
-            <input type="password" autoComplete="new-password" required value={nueva} onChange={(e) => setNueva(e.target.value)} />
+            <CampoPassword autoComplete="new-password" required value={nueva} onChange={(e) => setNueva(e.target.value)} />
           </label>
         </div>
         <div className="form-actions">

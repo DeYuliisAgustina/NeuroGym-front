@@ -39,6 +39,22 @@ describe('componentes', () => {
     expect(espia).not.toHaveBeenCalled();
   });
 
+  it('el ojo muestra y oculta la contraseña', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <Ingreso />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    const campo = screen.getByLabelText('Contraseña', { selector: 'input' });
+    expect(campo).toHaveAttribute('type', 'password');
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar contraseña' }));
+    expect(campo).toHaveAttribute('type', 'text');
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
+    expect(campo).toHaveAttribute('type', 'password');
+  });
+
   it('muestra el error de credenciales que devuelve el backend', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ error: 'CREDENCIALES_INVALIDAS', mensaje: 'Correo o contraseña incorrectos' }), { status: 401, headers: { 'Content-Type': 'application/json' } }),

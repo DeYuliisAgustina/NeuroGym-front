@@ -166,3 +166,9 @@ body.device-preview dialog{max-width:420px;width:calc(100vw - 36px)}body.device-
 .zona-chip.activa{border-color:#b9cf99;background:#eef5e3;color:var(--ng-green);font-weight:600}
 .zona-chip:focus-within{outline:2px solid var(--ng-lime);outline-offset:2px}
 .zonas-nota{font-size:11px;color:var(--muted);margin-top:9px;line-height:1.6}
+/* Campo de contraseña con el ojo para mostrarla u ocultarla. */
+.campo-password{position:relative;display:block;margin-top:7px}
+.campo-password input{margin-top:0;padding-right:46px}
+.ver-password{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:34px;height:34px;border-radius:8px;color:var(--muted);cursor:pointer}
+.ver-password:hover{color:var(--ink);background:#f1f5ef}
+.ver-password .icon{width:18px;height:18px}

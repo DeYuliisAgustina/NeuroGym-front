@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import hero from '../../assets/img/hero-entrenamiento.webp';
+import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { Boton, ErrorFormulario, Marca, Modal } from '../../components/ui';
 import { inicioDe, useAuth } from '../../contexts/AuthContext';
@@ -88,7 +89,7 @@ export function Ingreso({ administrativo = false }: { administrativo?: boolean }
       </label>
       <label>
         Contraseña
-        <input name="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!errores.password || undefined} />
+        <CampoPassword name="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!errores.password || undefined} />
         {errores.password && <small role="alert">{errores.password}</small>}
       </label>
       {!administrativo && (
