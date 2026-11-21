@@ -64,4 +64,47 @@ describe('Socios: confirmación del alta', () => {
     await waitFor(() => expect(screen.queryByText('lucia@prueba.test')).not.toBeInTheDocument());
     expect(screen.queryByText(/no tiene un registro pendiente/)).not.toBeInTheDocument();
   });
+
+  it('la revisión muestra la ficha editable: si se corrige un dato, se guarda antes de dar el alta', async () => {
+    localStorage.setItem('neurogym.token', 'token-de-prueba');
+    const orden: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const u = String(url);
+      if (u.includes('/auth/sesion')) return json({ usuarioId: 1, tipo: 'PERSONAL', nombre: 'Ana Demo', esAdminGeneral: true, permisos: [] });
+      if (init?.method === 'PUT' || init?.method === 'PATCH') {
+        orden.push(`${init.method} ${u.replace(/^.*\/api/, '')} ${String(init.body)}`);
+        return init.method === 'PUT' ? json({}) : new Response(null, { status: 204 });
+      }
+      if (u.includes('/admin/sedes')) return json([{ id: 1, nombre: 'Sede Centro', habilitada: true }]);
+      if (u.includes('/admin/socios')) return json(u.includes('pendiente=true') ? [pendiente] : []);
+      if (u.includes('/admin/gimnasio')) return json({ suscripcion: { tipo: 'INTELLIGENCE', maxSociosActivos: 4000 }, uso: { sociosActivos: 10 } });
+      return json([]);
+    });
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <SedeProvider>
+            <ToastProvider>
+              <Socios />
+            </ToastProvider>
+          </SedeProvider>
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /Ver pendientes de alta/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Revisar alta/ }));
+    const modal = await screen.findByRole('dialog');
+    // Una sola fila de acciones: sin "Guardar cambios" ni "Cancelar".
+    expect(within(modal).queryByRole('button', { name: /Guardar cambios/ })).not.toBeInTheDocument();
+    const telefono = within(modal).getByLabelText('Teléfono');
+    await userEvent.clear(telefono);
+    await userEvent.type(telefono, '341 555-9999');
+    await userEvent.click(within(modal).getByRole('button', { name: /Dar de alta/ }));
+
+    await waitFor(() => expect(orden).toHaveLength(2));
+    expect(orden[0]).toMatch(/^PUT \/admin\/socios\/37 .*341 555-9999/);
+    expect(orden[1]).toBe('PATCH /admin/socios/37/alta {"aprobar":true}');
+  });
 });

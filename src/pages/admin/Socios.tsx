@@ -210,6 +210,7 @@ export function Socios() {
         <RevisarAlta
           socio={ficha}
           gestion={gestion}
+          sedes={sedes.datos ?? []}
           alCerrar={() => setFicha(null)}
           alResolver={(mensaje) => {
             setFicha(null);
@@ -353,17 +354,25 @@ function AltaSocio({ sedes, sedeInicial, gimnasio, alCerrar, alGuardar }: { sede
 }
 
 /**
- * RF2: revisión del autorregistro. Muestra los datos que cargó el socio y dos
- * acciones: dar de alta (un clic) o rechazar (pide confirmación).
+ * RF2: revisión del autorregistro. Es la misma ficha del socio (datos editables)
+ * con una sola fila de acciones: Rechazar (pide confirmación) y Dar de alta.
+ * Si el personal corrigió algún dato, se guarda antes de dar el alta.
  */
-function RevisarAlta({ socio: s, gestion, alCerrar, alResolver }: { socio: SocioFila; gestion: boolean; alCerrar: () => void; alResolver: (mensaje: string | null) => void }) {
+function RevisarAlta({ socio: s, gestion, sedes, alCerrar, alResolver }: { socio: SocioFila; gestion: boolean; sedes: Sede[]; alCerrar: () => void; alResolver: (mensaje: string | null) => void }) {
+  const original = { nombre: s.usuario.nombre, apellido: s.usuario.apellido, telefono: s.telefono, sedeId: String(s.sede.id) };
+  const [f, setF] = useState(original);
   const [rechazando, setRechazando] = useState(false);
   const accion = useAccion();
   const nombre = `${s.usuario.nombre} ${s.usuario.apellido}`;
+  const cambiado = (Object.keys(original) as (keyof typeof original)[]).some((k) => f[k].trim() !== original[k]);
 
   const resolver = async (aprobar: boolean) => {
-    const ok = await accion.ejecutar(() => api.patch(`/admin/socios/${s.id}/alta`, { aprobar }));
-    if (ok) alResolver(aprobar ? `Listo: ${s.usuario.nombre} ya puede ingresar a NeuroGym.` : 'Registro rechazado.');
+    if (aprobar && (!f.nombre.trim() || !f.apellido.trim())) return accion.setError('Completá el nombre y el apellido.');
+    const ok = await accion.ejecutar(async () => {
+      if (aprobar && cambiado) await api.put(`/admin/socios/${s.id}`, { nombre: f.nombre, apellido: f.apellido, telefono: f.telefono, sedeId: Number(f.sedeId) });
+      return api.patch(`/admin/socios/${s.id}/alta`, { aprobar });
+    });
+    if (ok) alResolver(aprobar ? `Listo: ${f.nombre.trim()} ya puede ingresar a NeuroGym.` : 'Registro rechazado.');
   };
   // Si otra persona del gimnasio ya lo resolvió, se actualiza la lista en lugar de mostrar un error.
   const yaResuelto = !!accion.error && /no tiene un registro pendiente/.test(accion.error);
@@ -386,27 +395,59 @@ function RevisarAlta({ socio: s, gestion, alCerrar, alResolver }: { socio: Socio
     >
       <div className="ficha-resumen">
         <div>
-          <span>Correo</span>
-          <strong>{s.usuario.email}</strong>
-        </div>
-        <div>
-          <span>Teléfono</span>
-          <strong>{s.telefono}</strong>
-        </div>
-        <div>
-          <span>Sede</span>
-          <strong>{s.sede.nombre}</strong>
-        </div>
-        <div>
           <span>Plan</span>
-          <strong>Básico</strong>
+          <strong>{s.plan.tipo === 'PREMIUM' ? 'Premium' : 'Básico'}</strong>
+        </div>
+        <div>
+          <span>Asistencias</span>
+          <strong>{s.asistenciasMes} este mes</strong>
+        </div>
+        <div>
+          <span>Última visita</span>
+          <strong>{s.ultimaVisita ? fechaCorta(s.ultimaVisita) : '—'}</strong>
+        </div>
+        <div>
+          <span>Cuota</span>
+          <EstadoCuota estado={s.estadoCuota} />
         </div>
       </div>
       <ErrorFormulario>{accion.error}</ErrorFormulario>
+      <div className="form-grid">
+        <label>
+          Nombre
+          <input required disabled={!gestion || rechazando} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+        </label>
+        <label>
+          Apellido
+          <input required disabled={!gestion || rechazando} value={f.apellido} onChange={(e) => setF({ ...f, apellido: e.target.value })} />
+        </label>
+        <label>
+          Correo electrónico
+          <input type="email" value={s.usuario.email} readOnly />
+        </label>
+        <label>
+          Teléfono
+          <input type="tel" required disabled={!gestion || rechazando} value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} />
+        </label>
+        <label>
+          Sede
+          <select disabled={!gestion || rechazando} value={f.sedeId} onChange={(e) => setF({ ...f, sedeId: e.target.value })}>
+            {sedes.map((x) => (
+              <option key={x.id} value={x.id} disabled={!x.habilitada && String(x.id) !== f.sedeId}>
+                {x.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Plan
+          <input value={s.plan.tipo === 'PREMIUM' ? 'Premium' : 'Básico'} disabled />
+        </label>
+      </div>
       <p className="page-note">
         {rechazando
           ? '¿Rechazar este registro? La persona no va a poder ingresar a NeuroGym.'
-          : 'Revisá los datos. Al darlo de alta va a poder ingresar, se le genera la cuota del mes y le avisamos por WhatsApp.'}
+          : 'Revisá los datos (podés corregirlos). Al darlo de alta va a poder ingresar, se le genera la cuota del mes y le avisamos por WhatsApp.'}
       </p>
       {gestion && (
         <div className="form-actions split">
