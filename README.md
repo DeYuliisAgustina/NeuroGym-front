@@ -6,6 +6,8 @@ Trabajo Final de Ingeniería en Sistemas Informáticos — Universidad Abierta I
 
 Backend: [NeuroGym-back](https://github.com/DeYuliisAgustina/NeuroGym-back)
 
+**Versión online:** https://neurogym-front.vercel.app — las cuentas de prueba y cómo probar un pago están en el README del backend.
+
 ## Tecnologías
 
 React · TypeScript · Vite · React Router · Vitest
