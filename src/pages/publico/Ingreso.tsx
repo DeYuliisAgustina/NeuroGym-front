@@ -3,10 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import hero from '../../assets/img/hero-entrenamiento.webp';
 import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
-import { Boton, ErrorFormulario, Marca, Modal } from '../../components/ui';
+import { RecuperarPassword, VerificacionCorreo } from '../../components/CodigoCorreo';
+import { ErrorFormulario, Marca, Modal } from '../../components/ui';
 import { inicioDe, useAuth } from '../../contexts/AuthContext';
 import { useAccion } from '../../hooks/useApi';
-import { api } from '../../services/api';
+import { api, ErrorApi } from '../../services/api';
+import type { Sesion } from '../../types';
 import { validarIngreso } from '../../validations/formularios';
 
 /** Panel izquierdo con la foto y el mensaje (auth-art del prototipo). */
@@ -60,15 +62,31 @@ export function Ingreso({ administrativo = false }: { administrativo?: boolean }
   const [password, setPassword] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [recuperar, setRecuperar] = useState(false);
+  // Cuenta autorregistrada que todavía no confirmó su correo: se pide el código.
+  const [verificar, setVerificar] = useState(false);
   const { enviando, error, ejecutar } = useAccion();
+
+  const ingresar = async () => {
+    const sesion = await ejecutar(async () => {
+      try {
+        return await iniciarSesion(email, password, administrativo);
+      } catch (e) {
+        if (e instanceof ErrorApi && e.codigo === 'EMAIL_NO_VERIFICADO') setVerificar(true);
+        throw e;
+      }
+    });
+    if (sesion) await entrar(sesion);
+  };
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     const validacion = validarIngreso({ email, password });
     setErrores(validacion);
     if (Object.keys(validacion).length) return;
-    const sesion = await ejecutar(() => iniciarSesion(email, password, administrativo));
-    if (!sesion) return;
+    await ingresar();
+  };
+
+  const entrar = async (sesion: Sesion) => {
     // Cada cuenta entra a su propio espacio, más allá del perfil marcado.
     let destino = (ubicacion.state as { desde?: string })?.desde ?? inicioDe(sesion);
     if (sesion.tipo === 'SOCIO' && !(ubicacion.state as { desde?: string })?.desde) {
@@ -163,36 +181,43 @@ export function Ingreso({ administrativo = false }: { administrativo?: boolean }
           <h1>Qué bueno verte de nuevo.</h1>
           <p>Ingresá a tu espacio y seguí a tu ritmo.</p>
           <TarjetasPerfil valor={perfil} onCambiar={setPerfil} />
-          {formulario}
+          {verificar ? (
+            <>
+              <VerificacionCorreo
+                email={email.trim()}
+                textoBoton="Confirmar e ingresar"
+                onVerificado={async () => {
+                  // Si todavía no puede ingresar (por ejemplo, alta pendiente), el aviso se ve en el formulario.
+                  setVerificar(false);
+                  await ingresar();
+                }}
+              />
+              <p className="auth-note">
+                <button type="button" className="text-link" onClick={() => setVerificar(false)}>
+                  Volver al ingreso
+                </button>
+              </p>
+            </>
+          ) : (
+            formulario
+          )}
           <div className="auth-bottom">
             ¿No tenés una cuenta?
             <Link to={`/registro?perfil=${perfil}`}>Registrarse</Link>
           </div>
         </div>
       </main>
-      <Modal titulo="Recuperá tu acceso." subtitulo="Te ayudamos a volver a ingresar." abierto={recuperar} onCerrar={() => setRecuperar(false)} pie={<Boton onClick={() => setRecuperar(false)}>Entendido</Boton>}>
-        <div className="notice-list">
-          <div className="notice">
-            <Icono n="building" />
-            <div>
-              <h4>Si sos socio</h4>
-              <p>Acercate a la recepción de tu sede: el gimnasio te entrega una nueva contraseña temporal para tu cuenta.</p>
-            </div>
-          </div>
-          <div className="notice">
-            <Icono n="message" />
-            <div>
-              <h4>Si sos profesional</h4>
-              <p>
-                Escribinos a{' '}
-                <a className="text-link" href="mailto:ayuda@neurogym.com.ar">
-                  ayuda@neurogym.com.ar
-                </a>{' '}
-                desde el correo de tu cuenta.
-              </p>
-            </div>
-          </div>
-        </div>
+      <Modal titulo="Recuperá tu acceso." subtitulo="Te enviamos un código a tu correo para elegir una contraseña nueva." abierto={recuperar} onCerrar={() => setRecuperar(false)}>
+        {recuperar && (
+          <RecuperarPassword
+            emailInicial={email}
+            onListo={(correo) => {
+              setEmail(correo);
+              setPassword('');
+              setRecuperar(false);
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

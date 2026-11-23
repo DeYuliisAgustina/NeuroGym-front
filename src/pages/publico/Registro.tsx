@@ -4,11 +4,11 @@ import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { AyudaNombre } from '../../components/AyudaNombre';
 import { AyudaPassword } from '../../components/AyudaPassword';
+import { VerificacionCorreo } from '../../components/CodigoCorreo';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { mensajeConCampos, useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
-import type { Sesion } from '../../types';
 import { validarRegistroProfesional, validarRegistroSocio } from '../../validations/formularios';
 import { ArteAcceso, TarjetasPerfil } from './Ingreso';
 
@@ -59,6 +59,7 @@ function FormularioSocio() {
   const opciones = useApi(() => api.get<OpcionGimnasio[]>('/auth/registro/opciones'));
   const [f, setF] = useState({ email: '', password: '', nombre: '', apellido: '', telefono: '', gimnasioId: '', sedeId: '', consentimientoDatos: false });
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const [verificar, setVerificar] = useState<string | null>(null);
   const [enviado, setEnviado] = useState<string | null>(null);
   const accion = useAccion();
   const cambiar = (campo: string) => (e: { target: { value: string } }) => setF({ ...f, [campo]: e.target.value });
@@ -75,8 +76,11 @@ function FormularioSocio() {
     if (Object.keys(v).length) return accion.setError(mensajeConCampos('Revisá los datos ingresados', v));
     const { gimnasioId: _gimnasio, ...datos } = f;
     const r = await accion.ejecutar(() => api.post<{ mensaje: string }>('/auth/registro', { ...datos, sedeId: Number(f.sedeId) }));
-    if (r) setEnviado(r.mensaje);
+    if (r) setVerificar(r.mensaje);
   };
+
+  // Primero confirma el correo con el código; después se muestra que el gimnasio confirma el alta.
+  if (verificar && !enviado) return <VerificacionCorreo email={f.email.trim()} onVerificado={() => setEnviado(verificar)} />;
 
   if (enviado) {
     return (
@@ -172,8 +176,9 @@ function FormularioSocio() {
 }
 
 function FormularioProfesional() {
-  const { aplicarSesion } = useAuth();
+  const { iniciarSesion } = useAuth();
   const navegar = useNavigate();
+  const [verificar, setVerificar] = useState(false);
   const [f, setF] = useState({
     email: '',
     password: '',
@@ -200,17 +205,28 @@ function FormularioProfesional() {
     setErrores(v);
     if (Object.keys(v).length) return accion.setError(mensajeConCampos('Revisá los datos ingresados', v));
     const r = await accion.ejecutar(() =>
-      api.post<{ token: string; usuario: Sesion }>('/profesional/registro', {
+      api.post<{ mensaje: string }>('/profesional/registro', {
         ...f,
         valorConsulta: Number(f.valorConsulta),
         codigoReferido: f.codigoReferido || undefined,
       }),
     );
-    if (r) {
-      aplicarSesion(r.token, r.usuario);
-      navegar('/profesional/perfil');
-    }
+    if (r) setVerificar(true);
   };
+
+  // Ingresa después de confirmar el correo con el código.
+  if (verificar) {
+    return (
+      <VerificacionCorreo
+        email={f.email.trim()}
+        textoBoton="Confirmar e ingresar"
+        onVerificado={async () => {
+          await iniciarSesion(f.email.trim(), f.password);
+          navegar('/profesional/perfil');
+        }}
+      />
+    );
+  }
 
   return (
     <form id="register-form" onSubmit={enviar} noValidate>

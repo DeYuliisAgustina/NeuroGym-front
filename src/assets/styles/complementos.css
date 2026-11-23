@@ -48,3 +48,11 @@
 label small[role='alert'] { color: #b42318; font-weight: 500; }
 label:has(small[role='alert']) input,
 label:has(small[role='alert']) select { border-color: #e0533d; background: #fff8f6; }
+
+/* Código de 6 dígitos enviado por correo (verificación del registro y recuperación de la contraseña). */
+.campo-codigo {
+  font-size: 1.5rem;
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

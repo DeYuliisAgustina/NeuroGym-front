@@ -13,7 +13,8 @@ describe('registro del socio', () => {
   it('valida los datos, envía el pre-registro y avisa que el gimnasio confirma el alta', async () => {
     const espia = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       if (String(url).includes('/auth/registro/opciones')) return json([{ id: 1, razonSocial: 'Gimnasio Centro', sedes: [{ id: 7, nombre: 'Sede Centro', direccion: 'Calle 1' }] }]);
-      if (String(url).includes('/auth/registro') && init?.method === 'POST') return json({ mensaje: 'Registro recibido. Tu gimnasio va a confirmar tu alta.' }, 201);
+      if (String(url).includes('/auth/registro') && init?.method === 'POST') return json({ mensaje: 'Registro recibido. Tu gimnasio va a confirmar tu alta.', verificacionPendiente: true }, 201);
+      if (String(url).includes('/auth/verificacion') && init?.method === 'POST') return new Response(null, { status: 204 });
       return json({});
     });
     render(
@@ -37,6 +38,16 @@ describe('registro del socio', () => {
     await userEvent.selectOptions(screen.getByLabelText(/^Sede/), '7');
     await userEvent.click(screen.getByRole('checkbox'));
     await userEvent.click(screen.getByRole('button', { name: /Registrarse/ }));
+
+    // Primero confirma el correo con el código que le llegó.
+    expect(await screen.findByText('Confirmá tu correo')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Confirmar correo/ }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Ingresá el código de 6 dígitos');
+    await userEvent.type(screen.getByLabelText(/Código de 6 dígitos/), '12a3456');
+    expect(screen.getByLabelText(/Código de 6 dígitos/)).toHaveValue('123456');
+    await userEvent.click(screen.getByRole('button', { name: /Confirmar correo/ }));
+    const verificacion = espia.mock.calls.find(([url]) => String(url).endsWith('/auth/verificacion'));
+    expect(JSON.parse(String(verificacion?.[1]?.body))).toEqual({ email: 'lucia@prueba.test', codigo: '123456' });
 
     expect(await screen.findByText('¡Listo, Lucía!')).toBeInTheDocument();
     expect(screen.getByText(/Tu gimnasio va a confirmar tu alta/)).toBeInTheDocument();
