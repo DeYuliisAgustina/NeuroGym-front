@@ -43,3 +43,8 @@
     .payment-alert-actions .btn { flex: 1 1 100%; }
   }
 }
+
+/* Errores de formulario: el mensaje va en rojo debajo del campo y el campo se marca. */
+label small[role='alert'] { color: #b42318; font-weight: 500; }
+label:has(small[role='alert']) input,
+label:has(small[role='alert']) select { border-color: #e0533d; background: #fff8f6; }

@@ -17,6 +17,8 @@ export class ErrorApi extends Error {
 
   /** Errores de validación campo por campo devueltos por el backend (HTTP 400). */
   get errores(): Record<string, string> {
+    // El correo repetido se muestra debajo del campo de correo, como los demás errores.
+    if (this.codigo === 'EMAIL_EN_USO') return { email: 'Este correo ya tiene una cuenta. Si es tuyo, ingresá o recuperá tu contraseña.' };
     if (!Array.isArray(this.detalle)) return {};
     return Object.fromEntries((this.detalle as { campo: string; mensaje: string }[]).map((d) => [d.campo, d.mensaje]));
   }

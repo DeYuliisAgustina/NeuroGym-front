@@ -17,7 +17,7 @@ describe('validaciones de formularios', () => {
   });
 
   it('registro de profesional', () => {
-    const errores = validarRegistroProfesional({ email: 'p@demo.com', password: 'corta', nombre: '', apellido: 'X', valorConsulta: '', consentimientoDatos: true });
+    const errores = validarRegistroProfesional({ email: 'p@gmail.com', password: 'corta', nombre: '', apellido: 'Paz', valorConsulta: '', consentimientoDatos: true });
     expect(Object.keys(errores).sort()).toEqual(['nombre', 'password', 'valorConsulta']);
   });
 
@@ -43,4 +43,35 @@ describe('formato', () => {
     expect(tonoEstado('IMPAGA')).toBe('etiqueta-mal');
   });
   it('suma de días', () => expect(sumarDiasIso('2026-12-30', 3)).toBe('2027-01-02'));
+});
+
+describe('Registro: teléfono, nombre y mensaje por campo', () => {
+  it('valida el teléfono argentino con 0, 15 o +54 9 y rechaza característica inexistente', async () => {
+    const { telefonoValido } = await import('../src/validations/formularios');
+    for (const t of ['341 555-1234', '0341 15 555-1234', '+54 9 341 555-1234', '11 4567-8901']) expect(telefonoValido(t)).toBe(true);
+    for (const t of ['441 555-1234', '123', '3333333333', '341-ABC-1234']) expect(telefonoValido(t)).toBe(false);
+  });
+
+  it('el nombre acepta tildes y rechaza números', async () => {
+    const { errorNombre } = await import('../src/validations/formularios');
+    expect(errorNombre('María José')).toBeUndefined();
+    expect(errorNombre("O'Connor")).toBeUndefined();
+    expect(errorNombre('Lucía2')).toBe('Usá solo letras, sin números ni símbolos');
+  });
+
+  it('el mensaje general dice qué campos revisar', async () => {
+    const { mensajeConCampos } = await import('../src/hooks/useApi');
+    expect(mensajeConCampos('Revisá los datos ingresados', { email: 'x' })).toBe('Revisá el correo electrónico. Te marcamos el error debajo de cada campo.');
+    expect(mensajeConCampos('Revisá los datos ingresados', { email: 'x', telefono: 'y' })).toContain('el correo electrónico y el teléfono');
+    expect(mensajeConCampos('Otro error', {})).toBe('Otro error');
+  });
+});
+
+describe('Registro: correo de proveedor conocido', () => {
+  it('marca el correo inventado antes de enviar', async () => {
+    const { validarRegistroSocio } = await import('../src/validations/formularios');
+    const base = { password: 'Prueba123', nombre: 'Pepe', apellido: 'Paz', telefono: '341 555-1234', sedeId: '1', consentimientoDatos: true };
+    expect(validarRegistroSocio({ ...base, email: 'pepe@cualk.com' }).email).toContain('proveedor conocido');
+    expect(validarRegistroSocio({ ...base, email: 'pepe@gmail.com' }).email).toBeUndefined();
+  });
 });

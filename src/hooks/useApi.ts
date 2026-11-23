@@ -30,6 +30,32 @@ export function useApi<T>(cargar: () => Promise<T>, dependencias: unknown[] = []
   return { datos, error, cargando, recargar, setDatos };
 }
 
+/** Nombre legible de cada campo, para decir arriba del formulario qué hay que revisar. */
+const NOMBRES_CAMPO: Record<string, string> = {
+  nombre: 'el nombre',
+  apellido: 'el apellido',
+  email: 'el correo electrónico',
+  password: 'la contraseña',
+  telefono: 'el teléfono',
+  sedeId: 'la sede',
+  valorConsulta: 'el valor de la consulta',
+  consentimientoDatos: 'el consentimiento',
+};
+
+/**
+ * Si el error trae campos puntuales, el mensaje general dice cuáles revisar
+ * («Revisá el correo electrónico y el teléfono.») en lugar de uno genérico.
+ */
+export function mensajeConCampos(mensaje: string, errores: Record<string, string>): string {
+  // En el mismo orden en que aparecen los campos en el formulario.
+  const orden = Object.keys(NOMBRES_CAMPO);
+  const campos = Object.keys(errores).sort((a, b) => orden.indexOf(a) - orden.indexOf(b));
+  const nombres = campos.map((c) => NOMBRES_CAMPO[c]);
+  if (!nombres.length || nombres.some((n) => !n)) return mensaje;
+  const lista = nombres.length === 1 ? nombres[0] : `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+  return `Revisá ${lista}. Te marcamos el error debajo de cada campo.`;
+}
+
 /** Ejecuta una acción (envío de formulario, botón) y expone su estado. */
 export function useAccion() {
   const [enviando, setEnviando] = useState(false);
@@ -50,7 +76,7 @@ export function useAccion() {
       return (resultado ?? true) as T;
     } catch (e) {
       if (e instanceof ErrorApi) {
-        setError(e.message);
+        setError(mensajeConCampos(e.message, e.errores));
         setErrores(e.errores);
       } else setError((e as Error).message || 'Ocurrió un error inesperado');
       return undefined;

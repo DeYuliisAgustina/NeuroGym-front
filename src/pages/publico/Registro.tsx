@@ -4,7 +4,7 @@ import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAccion, useApi } from '../../hooks/useApi';
+import { mensajeConCampos, useAccion, useApi } from '../../hooks/useApi';
 import { api } from '../../services/api';
 import type { Sesion } from '../../types';
 import { validarRegistroProfesional, validarRegistroSocio } from '../../validations/formularios';
@@ -70,7 +70,7 @@ function FormularioSocio() {
     e.preventDefault();
     const v = validarRegistroSocio(f);
     setErrores(v);
-    if (Object.keys(v).length) return;
+    if (Object.keys(v).length) return accion.setError(mensajeConCampos('Revisá los datos ingresados', v));
     const { gimnasioId: _gimnasio, ...datos } = f;
     const r = await accion.ejecutar(() => api.post<{ mensaje: string }>('/auth/registro', { ...datos, sedeId: Number(f.sedeId) }));
     if (r) setEnviado(r.mensaje);
@@ -129,7 +129,7 @@ function FormularioSocio() {
       <label>
         Teléfono (WhatsApp)
         <input type="tel" placeholder="341 555-1234" value={f.telefono} onChange={cambiar('telefono')} autoComplete="tel" />
-        {error('telefono')}
+        {error('telefono') ?? <small>Con característica, por ejemplo 341 555-1234. Ahí te llegan los avisos por WhatsApp.</small>}
       </label>
       <div className="form-grid">
         <label>
@@ -196,7 +196,7 @@ function FormularioProfesional() {
     e.preventDefault();
     const v = validarRegistroProfesional(f);
     setErrores(v);
-    if (Object.keys(v).length) return;
+    if (Object.keys(v).length) return accion.setError(mensajeConCampos('Revisá los datos ingresados', v));
     const r = await accion.ejecutar(() =>
       api.post<{ token: string; usuario: Sesion }>('/profesional/registro', {
         ...f,

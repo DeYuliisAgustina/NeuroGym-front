@@ -9,7 +9,7 @@ import { useAccion, useApi } from '../../hooks/useApi';
 import { useInstalacion } from '../../hooks/useInstalacion';
 import { api } from '../../services/api';
 import { dinero, fechaLarga, conSede } from '../../utils/formato';
-import { telefonoValido } from '../../validations/formularios';
+import { MENSAJE_TELEFONO, telefonoValido } from '../../validations/formularios';
 
 interface Perfil {
   telefono: string;
@@ -44,7 +44,7 @@ export function PerfilSocio() {
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!telefonoValido(tel)) return accion.setError('Revisá el teléfono: solo números, espacios, + o guiones.');
+    if (!telefonoValido(tel)) return accion.setError(`Revisá el teléfono. ${MENSAJE_TELEFONO}.`);
     if (await accion.ejecutar(() => api.put('/socio/perfil', { telefono: tel }))) {
       toast('Tus datos se guardaron.');
       void perfil.recargar();
