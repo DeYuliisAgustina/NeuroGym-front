@@ -46,10 +46,10 @@ describe('formato', () => {
 });
 
 describe('Registro: teléfono, nombre y mensaje por campo', () => {
-  it('valida el teléfono argentino con 0, 15 o +54 9 y rechaza característica inexistente', async () => {
+  it('el teléfono solo exige números, espacios, + o guiones', async () => {
     const { telefonoValido } = await import('../src/validations/formularios');
-    for (const t of ['341 555-1234', '0341 15 555-1234', '+54 9 341 555-1234', '11 4567-8901']) expect(telefonoValido(t)).toBe(true);
-    for (const t of ['441 555-1234', '123', '3333333333', '341-ABC-1234']) expect(telefonoValido(t)).toBe(false);
+    for (const t of ['341 555-1234', '0341 15 555-1234', '+54 9 341 555-1234', '+598 99 123 456']) expect(telefonoValido(t)).toBe(true);
+    for (const t of ['123', '341-ABC-1234', '']) expect(telefonoValido(t)).toBe(false);
   });
 
   it('el nombre acepta tildes y rechaza números', async () => {

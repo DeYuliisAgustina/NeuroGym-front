@@ -6,30 +6,9 @@ export type Errores = Record<string, string>;
 
 export const emailValido = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 export const passwordSegura = (password: string) => password.length >= 8 && /[A-Za-z]/.test(password) && /\d/.test(password);
-/**
- * Teléfono argentino (misma regla que el backend): acepta «341 555-1234», «0341 15 555-1234»
- * o «+54 9 341 555-1234» y exige característica + número (10 dígitos), con una característica
- * real (empieza con 11, 2 o 3) y sin todos los dígitos iguales.
- */
-export function telefonoValido(telefono: string): boolean {
-  const limpio = telefono.trim();
-  if (!/^[+\d\s().-]+$/.test(limpio)) return false;
-  let d = limpio.replace(/\D/g, '');
-  if (d.startsWith('54') && d.length >= 12) {
-    d = d.slice(2);
-    if (d.startsWith('9') && d.length === 11) d = d.slice(1);
-  } else if (d.startsWith('0')) d = d.slice(1);
-  if (d.length === 12) {
-    for (const largo of [2, 3, 4]) {
-      if (d.slice(largo, largo + 2) === '15') {
-        d = d.slice(0, largo) + d.slice(largo + 2);
-        break;
-      }
-    }
-  }
-  return d.length === 10 && /^(11|[23])/.test(d) && !/^(\d)\1+$/.test(d);
-}
-export const MENSAJE_TELEFONO = 'Ingresá característica y número, por ejemplo 341 555-1234';
+/** Teléfono: solo números, espacios, +, paréntesis o guiones (la misma regla que el backend). */
+export const telefonoValido = (telefono: string) => /^[+\d\s()-]{8,30}$/.test(telefono.trim());
+export const MENSAJE_TELEFONO = 'Usá solo números, espacios, + o guiones (mínimo 8)';
 
 /** Nombre o apellido: solo letras (con tildes), espacios, apóstrofo y guion. */
 export function errorNombre(texto: string): string | undefined {
