@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
+import { AyudaNombre } from '../../components/AyudaNombre';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { mensajeConCampos, useAccion, useApi } from '../../hooks/useApi';
@@ -108,12 +109,12 @@ function FormularioSocio() {
         <label>
           Nombre
           <input value={f.nombre} onChange={cambiar('nombre')} autoComplete="given-name" />
-          {error('nombre')}
+          <AyudaNombre valor={f.nombre} error={errores.nombre ?? accion.errores.nombre} />
         </label>
         <label>
           Apellido
           <input value={f.apellido} onChange={cambiar('apellido')} autoComplete="family-name" />
-          {error('apellido')}
+          <AyudaNombre valor={f.apellido} error={errores.apellido ?? accion.errores.apellido} />
         </label>
       </div>
       <label>
@@ -217,12 +218,12 @@ function FormularioProfesional() {
         <label>
           Nombre
           <input value={f.nombre} onChange={cambiar('nombre')} autoComplete="given-name" />
-          {error('nombre')}
+          <AyudaNombre valor={f.nombre} error={errores.nombre ?? accion.errores.nombre} />
         </label>
         <label>
           Apellido
           <input value={f.apellido} onChange={cambiar('apellido')} autoComplete="family-name" />
-          {error('apellido')}
+          <AyudaNombre valor={f.apellido} error={errores.apellido ?? accion.errores.apellido} />
         </label>
       </div>
       <label>

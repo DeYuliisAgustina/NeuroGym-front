@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { AyudaNombre, errorNombreCompleto } from '../../components/AyudaNombre';
 import { Icono } from '../../components/Icono';
 import { Avatar, Boton, Encabezado, ErrorFormulario, Insignia, inicialesDe, Modal, ModalExito, Vacio } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
@@ -287,12 +288,12 @@ function AltaSocio({ sedes, sedeInicial, gimnasio, alCerrar, alGuardar }: { sede
           <label>
             Nombre
             <input required maxLength={60} autoComplete="given-name" value={f.nombre} onChange={cambiar('nombre')} />
-            {error('nombre')}
+            <AyudaNombre valor={f.nombre} error={errores.nombre ?? accion.errores.nombre} />
           </label>
           <label>
             Apellido
             <input required maxLength={60} autoComplete="family-name" value={f.apellido} onChange={cambiar('apellido')} />
-            {error('apellido')}
+            <AyudaNombre valor={f.apellido} error={errores.apellido ?? accion.errores.apellido} />
           </label>
           <label>
             Correo electrónico
@@ -367,7 +368,7 @@ function RevisarAlta({ socio: s, gestion, sedes, alCerrar, alResolver }: { socio
   const cambiado = (Object.keys(original) as (keyof typeof original)[]).some((k) => f[k].trim() !== original[k]);
 
   const resolver = async (aprobar: boolean) => {
-    if (aprobar && (!f.nombre.trim() || !f.apellido.trim())) return accion.setError('Completá el nombre y el apellido.');
+    if (aprobar && errorNombreCompleto(f.nombre, f.apellido)) return accion.setError(errorNombreCompleto(f.nombre, f.apellido)!);
     const ok = await accion.ejecutar(async () => {
       if (aprobar && cambiado) await api.put(`/admin/socios/${s.id}`, { nombre: f.nombre, apellido: f.apellido, telefono: f.telefono, sedeId: Number(f.sedeId) });
       return api.patch(`/admin/socios/${s.id}/alta`, { aprobar });
@@ -416,10 +417,12 @@ function RevisarAlta({ socio: s, gestion, sedes, alCerrar, alResolver }: { socio
         <label>
           Nombre
           <input required disabled={!gestion || rechazando} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+          <AyudaNombre valor={f.nombre} />
         </label>
         <label>
           Apellido
           <input required disabled={!gestion || rechazando} value={f.apellido} onChange={(e) => setF({ ...f, apellido: e.target.value })} />
+          <AyudaNombre valor={f.apellido} />
         </label>
         <label>
           Correo electrónico
@@ -486,7 +489,7 @@ function FichaSocio({ socio: s, gestion, sedes, alCerrar, alCambiar }: { socio: 
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!f.nombre.trim() || !f.apellido.trim()) return accion.setError('Completá el nombre y el apellido.');
+    if (errorNombreCompleto(f.nombre, f.apellido)) return accion.setError(errorNombreCompleto(f.nombre, f.apellido)!);
     if (await accion.ejecutar(() => api.put(`/admin/socios/${s.id}`, { nombre: f.nombre, apellido: f.apellido, telefono: f.telefono, sedeId: Number(f.sedeId) }))) alCambiar('Ficha del socio actualizada.');
   };
   const cambiarEstado = async () => {
@@ -529,10 +532,12 @@ function FichaSocio({ socio: s, gestion, sedes, alCerrar, alCambiar }: { socio: 
           <label>
             Nombre
             <input required disabled={!gestion} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+          <AyudaNombre valor={f.nombre} />
           </label>
           <label>
             Apellido
             <input required disabled={!gestion} value={f.apellido} onChange={(e) => setF({ ...f, apellido: e.target.value })} />
+          <AyudaNombre valor={f.apellido} />
           </label>
           <label>
             Correo electrónico

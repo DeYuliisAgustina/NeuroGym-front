@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { AyudaNombre, errorNombreCompleto } from '../../components/AyudaNombre';
 import { Boton, CabeceraTarjeta, Encabezado, ErrorFormulario, Insignia, Modal, ModalExito, Vacio } from '../../components/ui';
 import { useToast } from '../../contexts/ToastContext';
 import { useAccion, useApi } from '../../hooks/useApi';
@@ -52,6 +53,7 @@ export function Personal() {
     e.preventDefault();
     const i = integrante!;
     if (!i.nombre.trim() || !i.apellido.trim() || !i.rolId || (!i.id && !i.email.trim())) return accion.setError('Completá todos los datos y el rol.');
+    if (errorNombreCompleto(i.nombre, i.apellido)) return accion.setError(errorNombreCompleto(i.nombre, i.apellido)!);
     if (i.id) {
       if (await accion.ejecutar(() => api.put(`/admin/personal/${i.id}`, { nombre: i.nombre, apellido: i.apellido, rolId: Number(i.rolId) }))) {
         setIntegrante(null);
@@ -219,10 +221,12 @@ export function Personal() {
               <label>
                 Nombre
                 <input required maxLength={100} value={integrante.nombre} onChange={(e) => setIntegrante({ ...integrante, nombre: e.target.value })} />
+                <AyudaNombre valor={integrante.nombre} />
               </label>
               <label>
                 Apellido
                 <input required maxLength={100} value={integrante.apellido} onChange={(e) => setIntegrante({ ...integrante, apellido: e.target.value })} />
+                <AyudaNombre valor={integrante.apellido} />
               </label>
               <label className="wide">
                 Correo electrónico

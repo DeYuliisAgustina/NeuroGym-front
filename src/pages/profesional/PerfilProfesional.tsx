@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { CambioPassword } from '../../components/CambioPassword';
+import { AyudaNombre, errorNombreCompleto } from '../../components/AyudaNombre';
 import { Icono } from '../../components/Icono';
 import { Avatar, CabeceraTarjeta, Cargando, Encabezado, ErrorFormulario, FilaDato, Insignia, inicialesDe } from '../../components/ui';
 import { useToast } from '../../contexts/ToastContext';
@@ -24,7 +25,7 @@ export function PerfilProfesional() {
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!f.nombre.trim() || !f.apellido.trim()) return accion.setError('Completá el nombre y el apellido.');
+    if (errorNombreCompleto(f.nombre, f.apellido)) return accion.setError(errorNombreCompleto(f.nombre, f.apellido)!);
     if (await accion.ejecutar(() => api.put('/profesional/perfil', f))) {
       toast('Perfil guardado.');
       void perfil.recargar();
@@ -51,10 +52,12 @@ export function PerfilProfesional() {
                 <label>
                   Nombre
                   <input required maxLength={100} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+                  <AyudaNombre valor={f.nombre} />
                 </label>
                 <label>
                   Apellido
                   <input required maxLength={100} value={f.apellido} onChange={(e) => setF({ ...f, apellido: e.target.value })} />
+                  <AyudaNombre valor={f.apellido} />
                 </label>
                 <label className="wide">
                   Correo electrónico
