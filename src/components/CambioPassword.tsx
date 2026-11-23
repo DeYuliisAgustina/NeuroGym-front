@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useToast } from '../contexts/ToastContext';
+import { AyudaPassword } from './AyudaPassword';
 import { CampoPassword } from './CampoPassword';
 import { useAccion } from '../hooks/useApi';
 import { api } from '../services/api';
@@ -34,6 +35,7 @@ export function CambioPassword() {
           <label>
             Nueva contraseña
             <CampoPassword autoComplete="new-password" required value={nueva} onChange={(e) => setNueva(e.target.value)} />
+            <AyudaPassword valor={nueva} />
           </label>
         </div>
         <div className="form-actions">

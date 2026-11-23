@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CampoPassword } from '../../components/CampoPassword';
 import { Icono } from '../../components/Icono';
 import { AyudaNombre } from '../../components/AyudaNombre';
+import { AyudaPassword } from '../../components/AyudaPassword';
 import { ErrorFormulario } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { mensajeConCampos, useAccion, useApi } from '../../hooks/useApi';
@@ -125,7 +126,7 @@ function FormularioSocio() {
       <label>
         Contraseña
         <CampoPassword value={f.password} onChange={cambiar('password')} autoComplete="new-password" />
-        {error('password') ?? <small>Mínimo 8 caracteres, con letras y números.</small>}
+        <AyudaPassword valor={f.password} error={errores.password ?? accion.errores.password} />
       </label>
       <label>
         Teléfono (WhatsApp)
@@ -234,7 +235,7 @@ function FormularioProfesional() {
       <label>
         Contraseña
         <CampoPassword value={f.password} onChange={cambiar('password')} autoComplete="new-password" />
-        {error('password') ?? <small>Mínimo 8 caracteres, con letras y números.</small>}
+        <AyudaPassword valor={f.password} error={errores.password ?? accion.errores.password} />
       </label>
       <div className="form-grid">
         <label>
