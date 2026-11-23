@@ -119,7 +119,7 @@ function FormularioSocio() {
       <label>
         Correo electrónico
         <input type="email" placeholder="tu@email.com" value={f.email} onChange={cambiar('email')} autoComplete="email" />
-        {error('email')}
+        {error('email') ?? <small>Gmail, Hotmail, Outlook, Yahoo, iCloud u otro proveedor conocido.</small>}
       </label>
       <label>
         Contraseña
@@ -228,7 +228,7 @@ function FormularioProfesional() {
       <label>
         Correo electrónico
         <input type="email" placeholder="tu@email.com" value={f.email} onChange={cambiar('email')} autoComplete="email" />
-        {error('email')}
+        {error('email') ?? <small>Gmail, Hotmail, Outlook, Yahoo, iCloud u otro proveedor conocido.</small>}
       </label>
       <label>
         Contraseña
