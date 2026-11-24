@@ -11,7 +11,7 @@ import { fechaLarga, conSede } from '../../utils/formato';
 import { validarEjercicio } from '../../validations/formularios';
 import { iconoEjercicio } from './InicioSocio';
 
-interface RespuestaRutina {
+export interface RespuestaRutina {
   generador: string;
   preferencias: { objetivo: string; nivel: string; diasPorSemana: number } | null;
   rutina: { id: number; fechaGeneracion: string; ejercicios: EjercicioRutina[] } | null;
@@ -32,7 +32,7 @@ interface Entrenamiento {
  * Qué IA genera las rutinas, según lo que informa el backend (por ejemplo
  * «Gemini (gemini-3.5-flash)»). Si no hay IA configurada, es la simulación local.
  */
-function identificarIA(generador: string | undefined) {
+export function identificarIA(generador: string | undefined) {
   const g = generador ?? '';
   const modelo = g.match(/\((.+)\)/)?.[1] ?? '';
   if (g.startsWith('Gemini')) return { nombre: 'Gemini', proveedor: 'Google', modelo, real: true };
@@ -436,8 +436,23 @@ export function MiRutina() {
   );
 }
 
-/** "Ajustá tu ejercicio." (Figura 41, CU-003-003). */
-function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina; alCerrar: () => void; alGuardar: () => void }) {
+/**
+ * "Ajustá tu ejercicio." (Figura 41, CU-003-003). El personal la usa con la ruta
+ * de la rutina del socio (RF5).
+ */
+export function EditarEjercicio({
+  item,
+  alCerrar,
+  alGuardar,
+  ruta = `/ejercicios/${item.id}`,
+  titulo = 'Ajustá tu ejercicio.',
+}: {
+  item: EjercicioRutina;
+  alCerrar: () => void;
+  alGuardar: () => void;
+  ruta?: string;
+  titulo?: string;
+}) {
   const [f, setF] = useState({ nombre: item.nombre, series: item.series, repeticiones: item.repeticiones, pesoKg: item.pesoKg, descansoSeg: item.descansoSeg });
   const [error, setError] = useState<string | null>(null);
   const accion = useAccion();
@@ -447,7 +462,7 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
     setError(problema);
     if (problema) return;
     const ok = await accion.ejecutar(() =>
-      api.put(`/ejercicios/${item.id}`, {
+      api.put(ruta, {
         nombreEjercicio: f.nombre,
         series: f.series,
         repeticiones: f.repeticiones,
@@ -459,7 +474,7 @@ function EditarEjercicio({ item, alCerrar, alGuardar }: { item: EjercicioRutina;
   };
   const numero = (v: string) => (v === '' ? null : Number(v));
   return (
-    <Modal titulo="Ajustá tu ejercicio." subtitulo="Editá series, repeticiones y peso." abierto onCerrar={alCerrar}>
+    <Modal titulo={titulo} subtitulo="Editá series, repeticiones y peso." abierto onCerrar={alCerrar}>
       <form onSubmit={guardar} noValidate>
         <ErrorFormulario>{error ?? accion.error}</ErrorFormulario>
         <div className="form-grid">
@@ -554,20 +569,25 @@ function ProgresoGeneracion({ inicio, conEsqueleto, generador }: { inicio: numbe
 
 /**
  * "Generar rutina" (Figura 39, CU-003): la nueva rutina reemplaza a la vigente.
- * Al confirmar, el modal se cierra y la generación sigue en segundo plano.
+ * Al confirmar, el modal se cierra y la generación sigue en segundo plano. El
+ * personal la usa para generar la rutina de un socio (RF5) con otros textos.
  */
-function GenerarRutina({
+export function GenerarRutina({
   abierto,
   actual,
   generador,
   alCerrar,
   alIniciar,
+  subtitulo = 'Elegí tus preferencias para preparar una nueva rutina.',
+  nota = 'La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. La IA tarda unos segundos: podés seguir usando NeuroGym mientras tanto. No se solicitan datos biométricos.',
 }: {
   abierto: boolean;
   actual: RespuestaRutina['preferencias'];
   generador: string | undefined;
   alCerrar: () => void;
   alIniciar: (f: PreferenciasRutina) => void;
+  subtitulo?: string;
+  nota?: string;
 }) {
   const [f, setF] = useState({ objetivo: actual?.objetivo ?? 'Fuerza y bienestar', nivel: actual?.nivel ?? 'Principiante', diasPorSemana: actual?.diasPorSemana ?? 3 });
   // Zonas a evitar: lista cerrada, no se guardan (solo se usan en esta generación).
@@ -578,7 +598,7 @@ function GenerarRutina({
     alIniciar({ ...f, evitar });
   };
   return (
-    <Modal titulo="Generar rutina" subtitulo="Elegí tus preferencias para preparar una nueva rutina." abierto={abierto} onCerrar={alCerrar}>
+    <Modal titulo="Generar rutina" subtitulo={subtitulo} abierto={abierto} onCerrar={alCerrar}>
       <form onSubmit={generar}>
         <DistintivoIA generador={generador} />
         <div className="form-grid">
@@ -626,10 +646,7 @@ function GenerarRutina({
             salud.
           </p>
         </fieldset>
-        <p className="page-note">
-          La nueva rutina reemplaza la actual; podés revisar los ejercicios antes de entrenar. La IA tarda unos segundos: podés seguir usando NeuroGym mientras tanto. No se
-          solicitan datos biométricos.
-        </p>
+        <p className="page-note">{nota}</p>
         <div className="form-actions">
           <Boton estilo="outline" onClick={alCerrar}>
             Cancelar

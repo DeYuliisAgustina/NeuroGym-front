@@ -10,6 +10,7 @@ import { api } from '../../services/api';
 import type { Sede } from '../../types';
 import { fechaCorta, fechaLarga } from '../../utils/formato';
 import { validarSocio } from '../../validations/formularios';
+import { RutinaSocio } from './RutinaSocio';
 
 interface SocioFila {
   id: number;
@@ -56,6 +57,8 @@ export function Socios() {
   const gimnasio = useApi(() => api.get<Gimnasio>('/admin/gimnasio'));
   const [alta, setAlta] = useState(false);
   const [ficha, setFicha] = useState<SocioFila | null>(null);
+  // RF5: rutina del socio (se abre desde la ficha).
+  const [rutinaDe, setRutinaDe] = useState<SocioFila | null>(null);
   const [password, setPassword] = useState<{ email: string; clave: string } | null>(null);
 
   const lista = (socios.datos ?? []).filter((s) => !filtros.cuota || s.estadoCuota === filtros.cuota);
@@ -228,6 +231,10 @@ export function Socios() {
           gestion={gestion}
           sedes={sedes.datos ?? []}
           alCerrar={() => setFicha(null)}
+          alVerRutina={() => {
+            setRutinaDe(ficha);
+            setFicha(null);
+          }}
           alCambiar={(mensaje) => {
             setFicha(null);
             toast(mensaje);
@@ -235,6 +242,15 @@ export function Socios() {
             void pendientes.recargar();
             void gimnasio.recargar();
           }}
+        />
+      )}
+      {rutinaDe && (
+        <RutinaSocio
+          socioId={rutinaDe.id}
+          nombre={`${rutinaDe.usuario.nombre} ${rutinaDe.usuario.apellido}`}
+          activo={rutinaDe.usuario.activo}
+          gestion={gestion}
+          alCerrar={() => setRutinaDe(null)}
         />
       )}
       <ModalExito
@@ -480,7 +496,21 @@ function RevisarAlta({ socio: s, gestion, sedes, alCerrar, alResolver }: { socio
 }
 
 /** Ficha del socio con edición y desactivación (Figura 63 c). */
-function FichaSocio({ socio: s, gestion, sedes, alCerrar, alCambiar }: { socio: SocioFila; gestion: boolean; sedes: Sede[]; alCerrar: () => void; alCambiar: (mensaje: string) => void }) {
+function FichaSocio({
+  socio: s,
+  gestion,
+  sedes,
+  alCerrar,
+  alCambiar,
+  alVerRutina,
+}: {
+  socio: SocioFila;
+  gestion: boolean;
+  sedes: Sede[];
+  alCerrar: () => void;
+  alCambiar: (mensaje: string) => void;
+  alVerRutina: () => void;
+}) {
   const [f, setF] = useState({ nombre: s.usuario.nombre, apellido: s.usuario.apellido, telefono: s.telefono, sedeId: String(s.sede.id) });
   const [confirmarBaja, setConfirmarBaja] = useState(false);
   const accion = useAccion();
@@ -525,6 +555,12 @@ function FichaSocio({ socio: s, gestion, sedes, alCerrar, alCambiar }: { socio: 
           <span>Cuota</span>
           <EstadoCuota estado={s.estadoCuota} />
         </div>
+      </div>
+      <div className="spread" style={{ margin: '0 0 16px' }}>
+        <p className="muted" style={{ margin: 0 }}>{gestion ? 'Generá con IA o ajustá la rutina que el socio ve en «Mi rutina».' : 'Rutina que el socio ve en «Mi rutina».'}</p>
+        <Boton estilo="soft" chico icono="dumbbell" onClick={alVerRutina}>
+          Rutina
+        </Boton>
       </div>
       <form onSubmit={guardar}>
         <ErrorFormulario>{accion.error}</ErrorFormulario>
