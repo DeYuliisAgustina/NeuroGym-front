@@ -94,6 +94,18 @@ export function Socios() {
           </div>
         </div>
       )}
+      {/* RF5: la rutina de cada socio se gestiona desde su ficha. */}
+      <aside className="soft-alert green" aria-label="Rutinas de los socios" style={{ marginBottom: 20 }}>
+        <Icono n="sparkles" />
+        <div>
+          <h4>Rutinas de los socios</h4>
+          <p>
+            {gestion
+              ? 'Para crear con IA o editar la rutina de un socio, tocá «Ver ficha» y después el botón «Rutina».'
+              : 'Para consultar la rutina de un socio, tocá «Ver ficha» y después el botón «Rutina».'}
+          </p>
+        </div>
+      </aside>
       <div className="toolbar">
         <h3>
           {lista.length} {lista.length === 1 ? 'socio encontrado' : 'socios encontrados'}
